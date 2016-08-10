@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.design.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="itrans.itranstest.NearbyBusStops">
+
+    <RelativeLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:id="@+id/parent_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <fragment
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:name="com.google.android.gms.maps.SupportMapFragment"
+            android:id="@+id/nearbyMap" />
+
+        <com.arlib.floatingsearchview.FloatingSearchView
+            android:id="@+id/floating_search_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:inputType="textCapWords"
+            app:floatingSearch_searchBarMarginLeft="3dp"
+            app:floatingSearch_searchBarMarginTop="3dp"
+            app:floatingSearch_searchBarMarginRight="3dp"
+            app:floatingSearch_searchHint="Search..."
+            app:floatingSearch_menu="@menu/nearby_busstops_menu"
+            app:floatingSearch_suggestionsListAnimDuration="250"
+            app:floatingSearch_showSearchKey="false"
+            app:floatingSearch_leftActionMode="showHome"
+            app:floatingSearch_dismissOnOutsideTouch="true"
+            app:floatingSearch_close_search_on_keyboard_dismiss="true">
+        </com.arlib.floatingsearchview.FloatingSearchView>
+
+    </RelativeLayout>
+
+    <android.support.design.widget.FloatingActionButton
+        android:id="@+id/fab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="@dimen/fab_margin"
+        android:src="@drawable/ic_my_location_black_24dp"
+        app:backgroundTint="#ffffff"/>
+
+</android.support.design.widget.CoordinatorLayout>

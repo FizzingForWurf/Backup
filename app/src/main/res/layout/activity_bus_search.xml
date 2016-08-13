@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.design.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    tools:context="itrans.itranstest.BusSearch">
+
+    <RelativeLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:id="@+id/bus_parent_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <fragment
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:name="com.google.android.gms.maps.SupportMapFragment"
+            android:id="@+id/busSearchMap" />
+
+        <com.arlib.floatingsearchview.FloatingSearchView
+            android:id="@+id/bus_search_floating_search_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:inputType="textCapWords"
+            app:floatingSearch_searchBarMarginLeft="3dp"
+            app:floatingSearch_searchBarMarginTop="3dp"
+            app:floatingSearch_searchBarMarginRight="3dp"
+            app:floatingSearch_searchHint="Search..."
+            app:floatingSearch_suggestionsListAnimDuration="250"
+            app:floatingSearch_showSearchKey="false"
+            app:floatingSearch_menu="@menu/bus_number_menu"
+            app:floatingSearch_leftActionMode="showHome"
+            app:floatingSearch_dismissOnOutsideTouch="true"
+            app:floatingSearch_close_search_on_keyboard_dismiss="true">
+
+        </com.arlib.floatingsearchview.FloatingSearchView>
+        <!--app:floatingSearch_menu="@menu/nearby_busstops_menu"-->
+    </RelativeLayout>
+
+</android.support.design.widget.CoordinatorLayout>

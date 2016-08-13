@@ -151,71 +151,71 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
                 Log.i(TAG + " CLEAR", hi);
                 if (!oldQuery.equals("") && newQuery.equals("")) {
                     mSearchView.clearSuggestions();
-                }
-                mSearchView.showProgress();
-                String url = getPlaceAutoCompleteUrl(newQuery);
-                JsonObjectRequest jsonObjReq = new JsonObjectRequest(Request.Method.GET, url, null,
-                        new Response.Listener<JSONObject>() {
-                            @Override
-                            public void onResponse(JSONObject response) {
-                                String secondaryName;
-                                JSONArray ja;
-                                try {
-                                    ja = response.getJSONArray("predictions");
+                } else {
+                    mSearchView.showProgress();
+                    String url = getPlaceAutoCompleteUrl(newQuery);
+                    JsonObjectRequest jsonObjReq = new JsonObjectRequest(Request.Method.GET, url, null,
+                            new Response.Listener<JSONObject>() {
+                                @Override
+                                public void onResponse(JSONObject response) {
+                                    String secondaryName;
+                                    JSONArray ja;
+                                    try {
+                                        ja = response.getJSONArray("predictions");
+                                        for (int i = 0; i < ja.length(); i++) {
+                                            secondaryName = null;
+                                            JSONObject c = ja.getJSONObject(i);
+                                            String placeid = c.getString("place_id");
+                                            Log.i(TAG, placeid);
 
-                                    for (int i = 0; i < ja.length(); i++) {
-                                        secondaryName = null;
-                                        JSONObject c = ja.getJSONObject(i);
-                                        String placeid = c.getString("place_id");
-                                        Log.i(TAG, placeid);
-
-                                        JSONArray description = c.getJSONArray("terms");
-                                        JSONObject primaryDescription = description.getJSONObject(0);
-                                        String primaryDescriptionName = primaryDescription.getString("value");
-                                        Log.i(TAG, primaryDescriptionName);
-                                        if (description.length() > 1) {
-                                            for (int s = 1; s < description.length(); s++) {
-                                                JSONObject secondaryDescription = description.getJSONObject(s);
-                                                String secondaryDescriptionName = secondaryDescription.getString("value");
-                                                if (secondaryName == null) {
-                                                    secondaryName = secondaryDescriptionName;
-                                                } else {
-                                                    secondaryName = secondaryName + ", " + secondaryDescriptionName;
+                                            JSONArray description = c.getJSONArray("terms");
+                                            JSONObject primaryDescription = description.getJSONObject(0);
+                                            String primaryDescriptionName = primaryDescription.getString("value");
+                                            Log.i(TAG, primaryDescriptionName);
+                                            if (description.length() > 1) {
+                                                for (int s = 1; s < description.length(); s++) {
+                                                    JSONObject secondaryDescription = description.getJSONObject(s);
+                                                    String secondaryDescriptionName = secondaryDescription.getString("value");
+                                                    if (secondaryName == null) {
+                                                        secondaryName = secondaryDescriptionName;
+                                                    } else {
+                                                        secondaryName = secondaryName + ", " + secondaryDescriptionName;
+                                                    }
                                                 }
+                                            } else if (description.length() == 1) {
+                                                secondaryName = primaryDescriptionName;
                                             }
-                                        } else if (description.length() == 1) {
-                                            secondaryName = primaryDescriptionName;
+                                            Log.i(TAG + " 2nd", secondaryName);
+
+                                            NearbySuggestions nearbySuggestions = new NearbySuggestions();
+                                            nearbySuggestions.setmPlaceID(placeid);
+                                            nearbySuggestions.setmPlaceName(primaryDescriptionName);
+                                            nearbySuggestions.setmSecondaryPlaceName(secondaryName);
+                                            mResultsList.add(nearbySuggestions);
+
+                                            String finalPlaceResult = "(" + primaryDescriptionName + ")+" + secondaryName + "=";
+                                            mSuggestionsList.add(new NearbySuggestions(finalPlaceResult));
+                                            String hi = Integer.toString(mSuggestionsList.size());
+                                            Log.i(TAG + " TEST", hi);
                                         }
-                                        Log.i(TAG + " 2nd", secondaryName);
-
-                                        NearbySuggestions nearbySuggestions = new NearbySuggestions();
-                                        nearbySuggestions.setmPlaceID(placeid);
-                                        nearbySuggestions.setmPlaceName(primaryDescriptionName);
-                                        nearbySuggestions.setmSecondaryPlaceName(secondaryName);
-                                        mResultsList.add(nearbySuggestions);
-
-                                        String finalPlaceResult = "(" + primaryDescriptionName + ")+" + secondaryName + "=";
-                                        mSuggestionsList.add(new NearbySuggestions(finalPlaceResult));
                                         String hi = Integer.toString(mSuggestionsList.size());
-                                        Log.i(TAG + " TEST", hi);
+                                        Log.i(TAG + " AFTER LOOP", hi);
+                                        mSearchView.swapSuggestions(mSuggestionsList);
+                                        mSearchView.hideProgress();
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
                                     }
-                                    String hi = Integer.toString(mSuggestionsList.size());
-                                    Log.i(TAG + " AFTER LOOP", hi);
-                                    mSearchView.swapSuggestions(mSuggestionsList);
-                                    mSearchView.hideProgress();
-                                } catch (JSONException e) {
-                                    e.printStackTrace();
                                 }
-                            }
-                        }, new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Snackbar.make(findViewById(R.id.parent_view),
-                                "Oh no! Something went wrong. Please check that you are connected to the internet.",
-                                Snackbar.LENGTH_SHORT).show();
-                    }
-                });
-                requestQueue.add(jsonObjReq);
+                            }, new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            Snackbar.make(findViewById(R.id.parent_view),
+                                    "Oh no! Something went wrong. Please check that you are connected to the internet.",
+                                    Snackbar.LENGTH_SHORT).show();
+                        }
+                    });
+                    requestQueue.add(jsonObjReq);
+                }
             }
         });
 
@@ -462,8 +462,8 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
 
     private void createMarker(String busStopName, Double busStopLat, Double busStopLng) {
         LatLng latLng = new LatLng(busStopLat, busStopLng);
-        int height = 100;
-        int width = 100;
+        int height = 50;
+        int width = 50;
         BitmapDrawable bitmapdraw = (BitmapDrawable)getResources().getDrawable(R.drawable.nearby_marker);
         Bitmap b = bitmapdraw.getBitmap();
         Bitmap smallMarker = Bitmap.createScaledBitmap(b, width, height, false);

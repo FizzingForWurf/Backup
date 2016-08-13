@@ -1,10 +1,7 @@
 package itrans.itranstest;
 
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Color;
-import android.location.Location;
 import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -229,9 +226,10 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == PLACE_PICKER_REQUEST){
+            String latlong;
             if (resultCode == RESULT_OK){
                 Place chosenDestination = PlacePicker.getPlace(this, data);
-                String latlong = String.format("%s", chosenDestination.getLatLng());
+                latlong = String.format("%s", chosenDestination.getLatLng());
                 String address = String.format("%s", chosenDestination.getAddress());
                 if (address.equals("")) {
                     tvDestination.setText(latlong);
@@ -241,13 +239,16 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
                     tvDestination.setText(address);
                 }
                 processlatlng(latlong);
-                findBusRoutes();
+                if (latlong != null) {
+                    findBusRoutes();
+                }
             }
         }
         if (requestCode == PLACE_AUTOCOMPLETE_REQUEST_CODE) {
+            String latlong = null;
             if (resultCode == RESULT_OK) {
                 Place searchedDestination = PlaceAutocomplete.getPlace(this, data);
-                String latlong = String.format("%s", searchedDestination.getLatLng());
+                latlong = String.format("%s", searchedDestination.getLatLng());
                 String address = String.format("%s", searchedDestination.getAddress());
                 tvDestination.setText(address);
 
@@ -255,7 +256,9 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
             } else if (resultCode == PlaceAutocomplete.RESULT_ERROR) {
                 Status status = PlaceAutocomplete.getStatus(this, data);
             }
-            findBusRoutes();
+            if (latlong != null) {
+                findBusRoutes();
+            }
         }
         if (requestCode == TONE_PICKER) {
             if (resultCode == RESULT_OK) {

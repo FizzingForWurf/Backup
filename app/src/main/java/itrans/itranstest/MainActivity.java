@@ -150,8 +150,10 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                     Toast.makeText(MainActivity.this, "Maximum number of alarms reached", LENGTH_SHORT).show();
                 }else{
                     Intent intent = new Intent(MainActivity.this, AddDestination.class);
-                    intent.putExtra("LastLat", mLastLocation.getLatitude());
-                    intent.putExtra("LastLng", mLastLocation.getLongitude());
+                    if (mLastLocation != null) {
+                        intent.putExtra("LastLat", mLastLocation.getLatitude());
+                        intent.putExtra("LastLng", mLastLocation.getLongitude());
+                    }
                     startActivity(intent);
                 }
             }
@@ -589,9 +591,8 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     public boolean onNavigationItemSelected(MenuItem item) {
         // Handle navigation view item clicks here.
         int id = item.getItemId();
-
         if (id == R.id.nav_camera) {
-            // Handle the camera action
+
         } else if (id == R.id.nav_gallery) {
 
         } else if (id == R.id.nav_slideshow) {
@@ -600,13 +601,15 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
         } else if (id == R.id.nav_nearbyBus){
             Intent i = new Intent(MainActivity.this, NearbyBusStops.class);
-            i.putExtra("LastLat", mLastLocation.getLatitude());
-            i.putExtra("LastLng", mLastLocation.getLongitude());
+            if (mLastLocation != null) {
+                i.putExtra("LastLat", mLastLocation.getLatitude());
+                i.putExtra("LastLng", mLastLocation.getLongitude());
+            }
             startActivity(i);
 
         }else if (id == R.id.nav_busStopsSearch){
-//            Intent i = new Intent(MainActivity.this, BusNumberSearch.class);
-//            startActivity(i);
+            Intent s = new Intent(MainActivity.this, BusSearch.class);
+            startActivity(s);
         }
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);

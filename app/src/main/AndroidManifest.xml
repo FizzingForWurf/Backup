@@ -61,21 +61,26 @@
             android:name=".NearbyBusStops"
             android:label="@string/title_activity_nearby_bus_stops"
             android:theme="@style/AppTheme.NoActionBar.Transparent" />
+        <activity
+            android:name=".BusSearch"
+            android:label="@string/title_activity_bus_search"
+            android:theme="@style/AppTheme.NoActionBar"></activity>
 
         <service
             android:name=".MyLocationTrackingService"
             android:enabled="true"
             android:exported="true"
-            android:permission="">
-
-        </service>
+            android:permission=""></service>
 
         <receiver
             android:name=".AlarmReceiver"
             android:enabled="true"
-            android:exported="true">
+            android:exported="true"></receiver>
 
-        </receiver>
+        <activity
+            android:name=".BusArrivalTiming"
+            android:label="@string/title_activity_bus_arrival_timing"
+            android:theme="@style/AppTheme.NoActionBar"></activity>
     </application>
 
 </manifest>

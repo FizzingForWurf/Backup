@@ -1,26 +1,29 @@
 package itrans.itranstest;
 
+import android.Manifest;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
-import android.media.Ringtone;
-import android.media.RingtoneManager;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.design.widget.CoordinatorLayout;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
+import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -29,11 +32,15 @@ import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.ContextMenu;
+import android.view.Gravity;
 import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AbsListView;
 import android.widget.AdapterView;
+import android.widget.FrameLayout;
 import android.widget.ListView;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -42,9 +49,16 @@ import android.widget.Toast;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.LocationSettingsRequest;
+import com.google.android.gms.location.LocationSettingsResult;
+import com.google.android.gms.location.LocationSettingsStates;
+import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -58,25 +72,22 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 
 import static android.widget.Toast.LENGTH_SHORT;
 
 public class MainActivity extends AppCompatActivity implements AdapterView.OnItemClickListener, AdapterView.OnItemLongClickListener,
-        AbsListView.OnScrollListener, NavigationView.OnNavigationItemSelectedListener,OnMapReadyCallback,
-        GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener{
+        AbsListView.OnScrollListener, NavigationView.OnNavigationItemSelectedListener, OnMapReadyCallback{
 
     //Google Maps stuff
     private GoogleMap map;
-    private GoogleApiClient mGoogleApiClient;
-    private LocationRequest mLocationRequest;
+    private LocationManager locationManager;
     private Location mLastLocation;
     private LatLng LastLatLng;
     private final static int PLAY_SERVICES_RESOLUTION_REQUEST = 1000;
-    private static int UPDATE_INTERVAL = 10000; // 10 sec
-    private static int FATEST_INTERVAL = 5000; // 5 sec
-    private static int DISPLACEMENT = 10; // 10 meters
     private Marker mCurrLocationMarker;
     private int zoom_padding = 130;
+    private static int REQUEST_CODE_RECOVER_PLAY_SERVICES = 200;
 
     TextView tvtesting;
     ListView lvDestinations;
@@ -87,7 +98,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     private boolean isNearDestinationInitially = false;
     private boolean hasArrived = false;
     private boolean isServiceRunning = false;
-    private boolean isLocationUpdateActive = false;
     private boolean isRestoreDestinationMarkerCalled = false;
     private boolean isRestoreSwitchCalled = false;
     private int positionOfActivatedSwitch = -1;
@@ -104,8 +114,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     private SharedPreferences prefs;
     int number;
 
-    //Alarm stuff
-    private Ringtone ringtone;
+    private ProgressDialog deleteProgressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,12 +125,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         setTitle("iTrans");
 
         tvtesting = (TextView) findViewById(R.id.tvtesting);
-
-        if (checkPlayServices()) {
-            buildGoogleApiClient();
-        }
-
-        statusCheck();
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.fragmentMap);
         mapFragment.getMapAsync(this);
@@ -138,6 +141,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         lvDestinations.setOnItemLongClickListener(this);
         lvDestinations.setOnItemClickListener(this);
         lvDestinations.setOnScrollListener(this);
+        registerForContextMenu(lvDestinations);
 
         navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
@@ -148,16 +152,27 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             public void onClick(View view) {
                 if (lvDestinations.getCount() >= 10) {
                     Toast.makeText(MainActivity.this, "Maximum number of alarms reached", LENGTH_SHORT).show();
-                }else{
+                } else {
                     Intent intent = new Intent(MainActivity.this, AddDestination.class);
-                    if (mLastLocation != null) {
-                        intent.putExtra("LastLat", mLastLocation.getLatitude());
-                        intent.putExtra("LastLng", mLastLocation.getLongitude());
-                    }
                     startActivity(intent);
+                    overridePendingTransition(R.anim.slide_in, R.anim.slide_out);
                 }
             }
         });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_CODE_RECOVER_PLAY_SERVICES) {
+            if (resultCode == RESULT_OK) {
+                // Make sure the app is not already connected or attempting to connect
+
+            } else if (resultCode == RESULT_CANCELED) {
+                Toast.makeText(getApplicationContext(), "Google Play Services must be installed.",
+                        Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        }
     }
 
     @Override
@@ -165,7 +180,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         View something = lvDestinations.getChildAt(position);//getViewByPosition(position, lvDestinations);
         Switch alarmSwitch = (Switch) something.findViewById(R.id.alarmSwitch);
         TextView tvDistance = (TextView) something.findViewById(R.id.tvAlarmDistance);
-        if (alarmSwitch.isChecked()){
+        if (alarmSwitch.isChecked()) {
             //clears the map, then switch off the active switch, then reset the destination variables and distance display
             //then change the mapCamera back to current location
             map.clear();
@@ -175,10 +190,10 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             map.animateCamera(CameraUpdateFactory.newLatLngZoom(LastLatLng, 16));
             tvDistance.setText("Distance left:");
             isServiceRunning = isMyServiceRunning(MyLocationTrackingService.class);
-            if (isServiceRunning){
+            if (isServiceRunning) {
                 stopService(new Intent(this, MyLocationTrackingService.class));
             }
-        }else {
+        } else {
             if (!isOneSwitchChecked) {
                 positionOfActivatedSwitch = position;
                 map.clear();
@@ -212,7 +227,9 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
                 if (isNearDestinationInitially) {
                     isNearDestinationInitially = false;
-                    Toast.makeText(getApplicationContext(), "You are already near your destination!", Toast.LENGTH_SHORT).show();
+                    if (mLastLocation != null) {
+                        Toast.makeText(getApplicationContext(), "You are already near your destination!", Toast.LENGTH_SHORT).show();
+                    }
                     //trigger alarm and set switch to off
                     alarmSwitch.setChecked(false);
                     turnOffSwitch();
@@ -230,10 +247,10 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
                         AddDestinationMarkerOnMap(returnedLatLong, returnedRadius);
                     }
+                    String hi = "Distance left: " + result + "km";
+                    tvDistance.setText(hi);
                 }
-                String hi = "Distance left: " + result + "km";
-                tvDistance.setText(hi);
-            }else{
+            } else {
                 alarmSwitch.setChecked(false);
                 positionOfActivatedSwitch = number - 1;
                 Toast.makeText(getApplicationContext(), "You can only set one alarm.", Toast.LENGTH_SHORT).show();
@@ -243,8 +260,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     }
 
 
-
-    private void turnOffSwitch(){
+    private void turnOffSwitch() {
         positionOfActivatedSwitch = -1;
         prefs.edit().putInt("currentSelectedSwitch", -1).apply();
         isOneSwitchChecked = false;
@@ -284,7 +300,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         return bd;
     }
 
-    public float checkDistanceFromDestination(){
+    public float checkDistanceFromDestination() {
         if (LastLatLng != null) {
             //LatLng for set destination
             String[] latANDlong = returnedLatLong.split(",");
@@ -304,7 +320,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             locationDestination.setLongitude(longitudeDestination);
 
             distance = currentLocation.distanceTo(locationDestination);
-        }else{
+        } else {
             Toast.makeText(getApplicationContext(), "Please turn on location services", Toast.LENGTH_SHORT).show();
         }
         return distance;
@@ -316,7 +332,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         return false;
     }
 
-    public void statusCheck(){
+    public boolean statusCheck() {
         LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         boolean gps_enabled = false;
         boolean network_enabled = false;
@@ -333,17 +349,15 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             e.printStackTrace();
         }
 
-        if (!gps_enabled || !network_enabled) {
-            buildAlertMessageNoGps();
-        }
+        return !(!gps_enabled || !network_enabled);
     }
 
     private void buildAlertMessageNoGps() {
         final AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("Your GPS seems to be disabled, do you want to enable it?")
+        builder.setMessage("Your GPS seems to be disabled, do you want to enable it? Please ensure that you have stable network connection too.")
                 .setCancelable(false)
                 .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                    public void onClick(final DialogInterface dialog,  final int id) {
+                    public void onClick(final DialogInterface dialog, final int id) {
                         Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                         startActivity(intent);
                     }
@@ -351,6 +365,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                 .setNegativeButton("No", new DialogInterface.OnClickListener() {
                     public void onClick(final DialogInterface dialog, final int id) {
                         dialog.cancel();
+                        MainActivity.this.finish();
                     }
                 });
         final AlertDialog alert = builder.create();
@@ -366,17 +381,16 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         int[] to = {R.id.tvAlarmTitle, R.id.tvAlarmDestination};
 
         SimpleCursorAdapter myCursorAdapter = new SimpleCursorAdapter(this,
-                R.layout.custom_alert_destination_row,c,from,to);
+                R.layout.custom_alert_destination_row, c, from, to);
         db.close();
         lvDestinations.setAdapter(myCursorAdapter);
     }
 
-    private void toggleVisibility()	{
-        if(lvDestinations.getCount()>0) 	{
+    private void toggleVisibility() {
+        if (lvDestinations.getCount() > 0) {
             tvtesting.setVisibility(View.GONE);
             lvDestinations.setVisibility(View.VISIBLE);
-        }
-        else {
+        } else {
             lvDestinations.setVisibility(View.GONE);
             tvtesting.setVisibility(View.VISIBLE);
         }
@@ -391,56 +405,77 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     protected void onResume() {
         populateListViewFromDatabase();
         toggleVisibility();
-        checkPlayServices();
 
+        if (statusCheck()) {
+            locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
+            Criteria c = new Criteria();
+            c.setAccuracy(Criteria.ACCURACY_FINE);
+            c.setAltitudeRequired(false);
+            c.setBearingRequired(false);
+            c.setCostAllowed(true);
+            c.setPowerRequirement(Criteria.POWER_LOW);
+
+            try {
+                String provider = locationManager.getBestProvider(c, true);
+                mLastLocation = locationManager.getLastKnownLocation(provider);
+
+                locationManager.requestLocationUpdates(provider, 2000, 10, locationListener);
+            } catch (SecurityException e) {
+                Toast.makeText(getApplicationContext(), "Cannot detect...", Toast.LENGTH_SHORT).show();
+            }
+        }else{
+            buildAlertMessageNoGps();
+        }
         //prefs.edit().putInt("currentSelectedSwitch", -1).apply(); //this is for debugging
         positionOfActivatedSwitch = prefs.getInt("currentSelectedSwitch", -1);
-        isLocationUpdateActive = prefs.getBoolean("isLocationUpdateActive", false);
-        if (positionOfActivatedSwitch != -1){
+        if (positionOfActivatedSwitch != -1) {
             startRestoreState(positionOfActivatedSwitch);
         }
-
-        // if (!isLocationUpdateActive){
-        //startLocationUpdates();
-        //isLocationUpdateActive = true;
-        prefs.edit().putBoolean("isLocationUpdateActive", isLocationUpdateActive).apply();
-        //}
-
-        //String hi = String.valueOf(isLocationUpdateActive);
-        //Toast.makeText(getApplicationContext(), hi, Toast.LENGTH_SHORT).show();
         super.onResume();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        if (!mGoogleApiClient.isConnected())
-            mGoogleApiClient.connect();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        if (mGoogleApiClient.isConnected()) {
-            mGoogleApiClient.disconnect();
-        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        if (mGoogleApiClient.isConnected()) {
-            stopLocationUpdates();
-            isLocationUpdateActive = false;
+        if (locationManager != null) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
+                    PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
+                    Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                return;
+            }
+            locationManager.removeUpdates(locationListener);
         }
 
         SharedPreferences.Editor editor = prefs.edit();
         editor.putInt("currentSelectedSwitch", positionOfActivatedSwitch);
-        editor.putBoolean("isLocationUpdateActive", isLocationUpdateActive);
         editor.apply();
     }
 
-    private void startRestoreState(int position){
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (locationManager != null) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
+                    PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
+                    Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                return;
+            }
+            locationManager.removeUpdates(locationListener);
+        }
+    }
+
+    private void startRestoreState(int position) {
         DBAdapter db = new DBAdapter(this);
         db.open();
         number = position + 1;
@@ -454,7 +489,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         isRestoreDestinationMarkerCalled = true;
         isRestoreSwitchCalled = true;
 
-        if (positionOfActivatedSwitch >= 3) {
+        if (positionOfActivatedSwitch >= 4) {
             Handler handler = new Handler();
             handler.postDelayed(new Runnable() {
                 public void run() {
@@ -469,23 +504,9 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         }
     }
 
-    protected void startLocationUpdates() {
-        createLocationRequest();
-        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) !=
-                PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
-                android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
-    }
-
-    protected void stopLocationUpdates() {
-        LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
-    }
-
     private void AddDestinationMarkerOnMap(String receivedLatLng, String alertRadius) {
         int radius = Integer.parseInt(alertRadius);
-        String[] latANDlong =  receivedLatLng.split(",");
+        String[] latANDlong = receivedLatLng.split(",");
         double latitude = Double.parseDouble(latANDlong[0]);
         double longitude = Double.parseDouble(latANDlong[1]);
         LatLng selectedLocation = new LatLng(latitude, longitude);
@@ -518,45 +539,34 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     public void onMapReady(GoogleMap googleMap) {
         map = googleMap;
         map.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
+                PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        map.setMyLocationEnabled(true);
 
-        if (isRestoreDestinationMarkerCalled){
+        if (mLastLocation != null) {
+            LastLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+            if (mCurrLocationMarker != null) {
+                mCurrLocationMarker.remove();
+            }
+            mCurrLocationMarker = map.addMarker(new MarkerOptions()
+                    .position(LastLatLng)
+                    .title("You are here")
+                    .icon(BitmapDescriptorFactory.defaultMarker()));
+
+            CameraPosition cameraPosition = new CameraPosition.Builder()
+                    .target(LastLatLng)
+                    .zoom(16)
+                    .build();
+            map.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+        }
+
+        if (isRestoreDestinationMarkerCalled) {
             AddDestinationMarkerOnMap(returnedLatLong, returnedRadius);
             isRestoreDestinationMarkerCalled = false;
         }
-    }
-
-    private boolean checkPlayServices() {
-        int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
-        if (resultCode != ConnectionResult.SUCCESS) {
-            if (GooglePlayServicesUtil.isUserRecoverableError(resultCode)) {
-                GooglePlayServicesUtil.getErrorDialog(resultCode, this,
-                        PLAY_SERVICES_RESOLUTION_REQUEST).show();
-            } else {
-                Toast.makeText(getApplicationContext(),
-                        "This device is not supported.", Toast.LENGTH_LONG)
-                        .show();
-                finish();
-            }
-            return false;
-        }
-        return true;
-    }
-
-    protected void createLocationRequest() {
-        mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(UPDATE_INTERVAL);
-        mLocationRequest.setFastestInterval(FATEST_INTERVAL);
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
-        mLocationRequest.setSmallestDisplacement(DISPLACEMENT);
-    }
-
-    protected synchronized void buildGoogleApiClient(){
-        mGoogleApiClient = new GoogleApiClient.Builder(this)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .addApi(LocationServices.API)
-                .build();
-        mGoogleApiClient.connect();
     }
 
     @Override
@@ -572,7 +582,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.main, menu);
+        //getMenuInflater().inflate(R.menu.main, menu);
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -593,13 +603,14 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         int id = item.getItemId();
         if (id == R.id.nav_camera) {
 
-        } else if (id == R.id.nav_gallery) {
+        } else if (id == R.id.nav_feedback) {
+            Intent a = new Intent(MainActivity.this, Feedback.class);
+            startActivity(a);
+        } else if (id == R.id.nav_about) {
 
-        } else if (id == R.id.nav_slideshow) {
+        } else if (id == R.id.nav_settings) {
 
-        } else if (id == R.id.nav_manage) {
-
-        } else if (id == R.id.nav_nearbyBus){
+        } else if (id == R.id.nav_nearbyBus) {
             Intent i = new Intent(MainActivity.this, NearbyBusStops.class);
             if (mLastLocation != null) {
                 i.putExtra("LastLat", mLastLocation.getLatitude());
@@ -607,7 +618,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             }
             startActivity(i);
 
-        }else if (id == R.id.nav_busStopsSearch){
+        } else if (id == R.id.nav_busStopsSearch) {
             Intent s = new Intent(MainActivity.this, BusSearch.class);
             startActivity(s);
         }
@@ -617,117 +628,179 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         return true;
     }
 
-
     @Override
-    public void onConnected(@Nullable Bundle bundle) {
-        startLocationUpdates();
-        isLocationUpdateActive = true;
-        prefs.edit().putBoolean("isLocationUpdateActive", isLocationUpdateActive).apply();
+    public void onCreateContextMenu(ContextMenu menu, View v,ContextMenu.ContextMenuInfo menuInfo) {
+        super.onCreateContextMenu(menu, v, menuInfo);
+//        if(v.getId() == R.id.lvDestinations) {
+//            menu.add(1,0,0, "Edit");
+//            menu.add(1, 0, 0, "Delete");
+//        }
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.delete_edit_alarm_menu, menu);
     }
 
     @Override
-    public void onConnectionSuspended(int i) {
-        mGoogleApiClient.connect();
-    }
-
-    @Override
-    public void onLocationChanged(Location location) {
-        mLastLocation = location;
-        if (mCurrLocationMarker != null) {
-            mCurrLocationMarker.remove();
-        }
-
-        LastLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
-        MarkerOptions markerOptions = new MarkerOptions();
-        markerOptions.position(LastLatLng);
-        markerOptions.title("You are here");
-        markerOptions.icon(BitmapDescriptorFactory.defaultMarker());
-
-        CameraPosition cameraPosition = new CameraPosition.Builder()
-                .target(LastLatLng)
-                .zoom(16)
-                //.tilt(30)
-                .build();
-        map.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
-        mCurrLocationMarker = map.addMarker(markerOptions);
-
-        if (returnedRadius != null && returnedLatLong != null) {
-
-            String[] latANDlong =  returnedLatLong.split(",");
-            double latitude = Double.parseDouble(latANDlong[0]);
-            double longitude = Double.parseDouble(latANDlong[1]);
-            LatLng selectedLocation = new LatLng(latitude, longitude);
-
-            if (LastLatLng != null) {
-                LatLngBounds.Builder builder = new LatLngBounds.Builder();
-                builder.include(LastLatLng);
-                builder.include(selectedLocation);
-                LatLngBounds bounds = builder.build();
-                map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, zoom_padding));
-            }
-
-            distance = checkDistanceFromDestination();
-
-            float distanceleftInKm = distance/1000;
-            BigDecimal result;
-            result = round(distanceleftInKm, 2);
-
-            if (positionOfActivatedSwitch > -1) {
-                View view = getViewByPosition(positionOfActivatedSwitch, lvDestinations);
-                if (view.getVisibility() == View.VISIBLE) {
-                    TextView alarmDistance = (TextView) view.findViewById(R.id.tvAlarmDistance);
-                    Switch alarmSwitch = (Switch) view.findViewById(R.id.alarmSwitch);
-                    alarmDistance.setText("Distance left: " + result + "km");
-                    if (isRestoreSwitchCalled) {
-                        alarmSwitch.setChecked(true);
-                        isRestoreSwitchCalled = false;
-                    }
-                    view.refreshDrawableState();
+    public boolean onContextItemSelected(MenuItem item) {
+        switch (item.getItemId()){
+            case R.id.editAlarmMenu:
+                AdapterView.AdapterContextMenuInfo information = (AdapterView.AdapterContextMenuInfo)item.getMenuInfo();
+                DBAdapter db1 = new DBAdapter(this);
+                db1.open();
+                String updateTitle = db1.getTitle(Integer.toString(information.position + 1));
+                String updateDestination = db1.getDestination(Integer.toString(information.position + 1));
+                String updateLatLng = db1.getLatLng(Integer.toString(information.position + 1));
+                String updateRadius = db1.getRadius(Integer.toString(information.position + 1));
+                String updateRingTone = db1.getRingTone(Integer.toString(information.position + 1));
+                db1.close();
+                Intent i = new Intent(MainActivity.this, AddDestination.class);
+                i.putExtra("updateRowNumber", information.position + 1);
+                i.putExtra("updateTitle", updateTitle);
+                i.putExtra("updateDestination", updateDestination);
+                i.putExtra("updateLatLng", updateLatLng);
+                i.putExtra("updateRadius", updateRadius);
+                i.putExtra("updateRingTone", updateRingTone);
+                startActivity(i);
+                overridePendingTransition(R.anim.slide_in, R.anim.slide_out);
+                break;
+            case R.id.deleteAlarmMenu:
+                if (deleteProgressDialog == null){
+                    deleteProgressDialog = new ProgressDialog(MainActivity.this);
+                    deleteProgressDialog.setMessage("Deleting...");
+                    deleteProgressDialog.setCancelable(false);
                 }
-            }
-            float radius = Float.parseFloat(returnedRadius);
-            hasArrived = (distance <= radius);
-        }
+                deleteProgressDialog.show();
+                AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo)item.getMenuInfo();
+                DBAdapter db = new DBAdapter(this);
+                db.open();
+                db.deleteEntry(info.position + 1);
+                Log.e("DELETE", "DELETE SINGLE ENTRY");
 
-        //check if arriving
-        if (hasArrived){
-            if (positionOfActivatedSwitch > -1) {
-                View view = getViewByPosition(positionOfActivatedSwitch, lvDestinations);
-                if (view.getVisibility() == View.VISIBLE) {
-                    Switch alarmSwitch = (Switch) view.findViewById(R.id.alarmSwitch);
-                    TextView alarmDistance = (TextView) view.findViewById(R.id.tvAlarmDistance);
-                    alarmDistance.setText("Distance left: ");
-                    alarmSwitch.setChecked(false);
-                    view.refreshDrawableState();
+                ArrayList<AlarmsDeleteHelper> deleteHelperArrayList;
+                deleteHelperArrayList = db.getAllEntriesIntoArrayList();
+                Log.e("DELETE", "GET AFTER DELETE NUMBER " + String.valueOf(deleteHelperArrayList.size()));
+
+                db.deleteAllEntries();
+                Log.e("DELETE", "DELETE all ENTRY");
+
+                for (int e = 0; e < deleteHelperArrayList.size(); e++){
+                    String Title = deleteHelperArrayList.get(e).getTitle();
+                    String Destination = deleteHelperArrayList.get(e).getDestination();
+                    String LatLng = deleteHelperArrayList.get(e).getLatLng();
+                    String Radius = deleteHelperArrayList.get(e).getRadius();
+                    String RingTone = deleteHelperArrayList.get(e).getRingTone();
+                    db.insertEntry(Title, Destination, LatLng, Radius, RingTone);
+                    Log.e("DELETE", "CURRENTLY ADDING: " + String.valueOf(e));
                 }
+                Log.e("DELETE", "RESTORE DATA BACK INTO BANK");
+                db.close();
+                populateListViewFromDatabase();
+                toggleVisibility();
+                Log.e("DELETE", "DELETE COMPLETE");
+                if (deleteProgressDialog != null && deleteProgressDialog.isShowing()) {
+                    deleteProgressDialog.dismiss();
+                }
+                break;
+        }
+        return super.onContextItemSelected(item);
+    }
+
+    private final android.location.LocationListener locationListener = new android.location.LocationListener() {
+
+        @Override
+        public void onLocationChanged(Location location) {
+            mLastLocation = location;
+            if (mCurrLocationMarker != null) {
+                mCurrLocationMarker.remove();
             }
 
-            turnOffSwitch();
-            hasArrived = false;
-        }
-    }
+            LastLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+            MarkerOptions markerOptions = new MarkerOptions();
+            markerOptions.position(LastLatLng);
+            markerOptions.title("You are here");
+            markerOptions.icon(BitmapDescriptorFactory.defaultMarker());
 
-    private void startAlarm(){
-        Uri uri = Uri.parse(returnedRingTone);
-        ringtone = RingtoneManager.getRingtone(getApplicationContext(), uri);
-        ringtone.play();
+            CameraPosition cameraPosition = new CameraPosition.Builder()
+                    .target(LastLatLng)
+                    .zoom(16)
+                    .build();
+            map.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+            mCurrLocationMarker = map.addMarker(markerOptions);
 
-        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("You have arrived!")
-                .setCancelable(false)
-                .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-                    public void onClick(final DialogInterface dialog,  final int id) {
-                        ringtone.stop();
+            if (returnedRadius != null && returnedLatLong != null) {
+
+                String[] latANDlong = returnedLatLong.split(",");
+                double latitude = Double.parseDouble(latANDlong[0]);
+                double longitude = Double.parseDouble(latANDlong[1]);
+                LatLng selectedLocation = new LatLng(latitude, longitude);
+
+                if (LastLatLng != null) {
+                    LatLngBounds.Builder builder = new LatLngBounds.Builder();
+                    builder.include(LastLatLng);
+                    builder.include(selectedLocation);
+                    LatLngBounds bounds = builder.build();
+                    map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, zoom_padding));
+                }
+
+                distance = checkDistanceFromDestination();
+
+                float distanceleftInKm = distance / 1000;
+                BigDecimal result;
+                result = round(distanceleftInKm, 2);
+
+                if (positionOfActivatedSwitch > -1) {
+                    View view = getViewByPosition(positionOfActivatedSwitch, lvDestinations);
+                    if (view.getVisibility() == View.VISIBLE) {
+                        TextView alarmDistance = (TextView) view.findViewById(R.id.tvAlarmDistance);
+                        Switch alarmSwitch = (Switch) view.findViewById(R.id.alarmSwitch);
+                        alarmDistance.setText("Distance left: " + result + "km");
+                        if (isRestoreSwitchCalled) {
+                            alarmSwitch.setChecked(true);
+                            isRestoreSwitchCalled = false;
+                        }
+                        view.refreshDrawableState();
                     }
-                });
-        final AlertDialog alert = builder.create();
-        alert.show();
-    }
+                }
+                float radius = Float.parseFloat(returnedRadius);
+                hasArrived = (distance <= radius);
+            }
 
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+            //check if arriving
+            if (hasArrived) {
+                if (positionOfActivatedSwitch > -1) {
+                    View view = getViewByPosition(positionOfActivatedSwitch, lvDestinations);
+                    if (view.getVisibility() == View.VISIBLE) {
+                        Switch alarmSwitch = (Switch) view.findViewById(R.id.alarmSwitch);
+                        TextView alarmDistance = (TextView) view.findViewById(R.id.tvAlarmDistance);
+                        alarmDistance.setText("Distance left: ");
+                        alarmSwitch.setChecked(false);
+                        view.refreshDrawableState();
+                    }
+                }
+                map.clear();
+                mCurrLocationMarker = map.addMarker(new MarkerOptions()
+                        .position(LastLatLng)
+                        .title("You are here")
+                        .icon(BitmapDescriptorFactory.defaultMarker()));
+                turnOffSwitch();
+                hasArrived = false;
+            }
+        }
 
-    }
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle bundle) {
+
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+
+        }
+    };
 
     @Override
     public void onScrollStateChanged(AbsListView absListView, int i) {
@@ -736,12 +809,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
     @Override
     public void onScroll(AbsListView absListView, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
-//        if (selectedAlarmView != null && selectedAlarmView.getVisibility() != View.VISIBLE){
-//            Log.e("HELLOO WORLD", "SELECTED NOT VISIBLE");
-//        }
-//        if (selectedAlarmView == null){
-//            Log.e("HELLOO WORLD", "NULL");
-//        }
         int lastVisibleItem = (firstVisibleItem + visibleItemCount) - 1;
         if (positionOfActivatedSwitch >= 0) {
             if (firstVisibleItem < positionOfActivatedSwitch && lastVisibleItem < positionOfActivatedSwitch ||
@@ -755,10 +822,30 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 //                alarmDistance.setText("Distance left: ");
 //                alarmSwitch.setChecked(false);
 //                fakeView.refreshDrawableState();
+                for (int i = 0; i < visibleItemCount; i++){
+                    View loopView = lvDestinations.getChildAt(firstVisibleItem + i);
+                    Switch alarmSwitch = (Switch) loopView.findViewById(R.id.alarmSwitch);
+                    TextView alarmDistance = (TextView) loopView.findViewById(R.id.tvAlarmDistance);
+                    if (alarmSwitch.isChecked()){
+                        alarmSwitch.setChecked(false);
+                        alarmDistance.setText("Distance left: ");
+                        loopView.refreshDrawableState();
+                    }
+                }
             } else if (firstVisibleItem <= positionOfActivatedSwitch && lastVisibleItem >= positionOfActivatedSwitch) {
                 //this means that the activated switch is in the view of the user
                 //activateSwitchOnScroll();
                 Log.e("VISIBILITY", "View selected visible");
+                View activeView = getViewByPosition(positionOfActivatedSwitch, lvDestinations);
+                Switch alarmSwitch = (Switch) activeView.findViewById(R.id.alarmSwitch);
+                TextView alarmDistance = (TextView) activeView.findViewById(R.id.tvAlarmDistance);
+                if (!alarmSwitch.isChecked()){
+                    alarmSwitch.setChecked(true);
+                    float distanceleftInKm = distance / 1000;
+                    BigDecimal result;
+                    result = round(distanceleftInKm, 2);
+                    alarmDistance.setText("Distance left: " + result + "km");
+                }
             }
         }
     }
@@ -780,17 +867,4 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         currentPosition = positionOfActivatedSwitch;
         positionOfActivatedSwitch = -1;
     }
-
-//    @Override
-//    public void onConfigurationChanged(Configuration newConfig) {
-//        super.onConfigurationChanged(newConfig);
-//
-//        // Checks the orientation of the screen
-//        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-//
-//        } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT){
-//
-//        }
-//    }
 }
-

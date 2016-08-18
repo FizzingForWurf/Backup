@@ -2,6 +2,7 @@ package itrans.itranstest;
 
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DefaultItemAnimator;
 import android.support.v7.widget.LinearLayoutManager;
@@ -55,6 +56,8 @@ public class BusArrivalTiming extends AppCompatActivity{
     private int ending;
     private boolean select;
 
+    private SwipeRefreshLayout mSwipeRefreshLayout;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -95,8 +98,22 @@ public class BusArrivalTiming extends AppCompatActivity{
         RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(getApplicationContext());
         rvBusServices.setLayoutManager(mLayoutManager);
         rvBusServices.setItemAnimator(new DefaultItemAnimator());
-        //rvBusServices.addItemDecoration(new DividerItemDecoration(this, LinearLayoutManager.VERTICAL));
         rvBusServices.setAdapter(mBusArrivalAdapter);
+
+        mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.bus_arrival_swipe_refresh);
+        mSwipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                if (!busServiceList.isEmpty()){
+                    busServiceList.clear();
+                }
+                if (!toggleCounter.isEmpty()){
+                    toggleCounter.clear();
+                }
+                call(selectedBusStopId, 0);
+                mSwipeRefreshLayout.setRefreshing(false);
+            }
+        });
 
         call(selectedBusStopId, 0);
     }
@@ -120,7 +137,7 @@ public class BusArrivalTiming extends AppCompatActivity{
         overridePendingTransition(R.anim.slide_enter, R.anim.slide_exit);
     }
 
-    public void call(String busStop, final int toggle){
+    private void call(String busStop, final int toggle){
         JsonObjectRequest BusStopRequest = new JsonObjectRequest(Request.Method.GET, "http://datamall2.mytransport.sg/ltaodataservice/BusArrival?BusStopID="+busStop+"&SST=True", null,
                 new Response.Listener<JSONObject>() {
                     @Override

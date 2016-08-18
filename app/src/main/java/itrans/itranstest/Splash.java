@@ -96,7 +96,7 @@ public class Splash extends Activity{
                                     lastNo = busNo;
                                     mApplication.addToDatabase(busNo,getApplication());
                                     splashDescription.setText(Html.fromHtml("First time run initialisation" +
-                                            "<br />" + "<small>"  +"Items downloaded: " + String.valueOf(label) +
+                                            "<br />" + "<small>"  +"Items downloaded: " + String.valueOf(label) + "/412" +
                                             "<br />" + "Please do not exit the application." + "</small>"));
                                 }
                             }

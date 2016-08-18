@@ -1,5 +1,6 @@
 package itrans.itranstest;
 
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
@@ -83,6 +84,8 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
     private long diff;
     private String selectedBusStopName;
 
+    private ProgressDialog progressDialog;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -149,6 +152,12 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
         mSearchView.setOnSearchListener(new FloatingSearchView.OnSearchListener() {
             @Override
             public void onSuggestionClicked(SearchSuggestion searchSuggestion) {
+                if (progressDialog == null) {
+                    progressDialog = new ProgressDialog(BusSearch.this);
+                    progressDialog.setMessage("Calculating...");
+                    progressDialog.setCancelable(false);
+                }
+                progressDialog.show();
                 for(int i = 0; i < BusServiceNumberList.size();i++) {
                     if(BusServiceNumberList.get(i).equals(searchSuggestion.getBody())) {
                         selectedServiceNumber = BusServiceNumberList.get(i);
@@ -207,8 +216,6 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
                             if(!dontCall){
                                 busStops();
                             }else{
-                                Toast.makeText(getApplicationContext(), "Please wait...", Toast.LENGTH_LONG).show();
-                                Toast.makeText(getApplicationContext(), "Please wait...", Toast.LENGTH_SHORT).show();
                                 Collections.sort(allBusStops);
                                 count = -50;
                                 for(int i = allBusStops.size() - 1; i >= 0; i--){
@@ -231,7 +238,12 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
                     @Override
                     public void onErrorResponse(VolleyError error) {
                         Log.e("VOLLEY", "ERROR");
-                        Toast.makeText(getApplicationContext(), "That did not work:(", Toast.LENGTH_LONG).show();
+                        if (progressDialog != null && progressDialog.isShowing()) {
+                            progressDialog.dismiss();
+                        }
+                        Snackbar.make(findViewById(R.id.bus_arrival_parent_view),
+                                "Oh no! Something went wrong. Please check that you are connected to the internet.",
+                                Snackbar.LENGTH_SHORT).show();
                     }
                 }) {
             @Override
@@ -292,7 +304,12 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
                     @Override
                     public void onErrorResponse(VolleyError error) {
                         Log.e("VOLLEY", "ERROR");
-                        Toast.makeText(getApplicationContext(), "That did not work:(", Toast.LENGTH_LONG).show();
+                        if (progressDialog != null && progressDialog.isShowing()) {
+                            progressDialog.dismiss();
+                        }
+                        Snackbar.make(findViewById(R.id.bus_arrival_parent_view),
+                                "Oh no! Something went wrong. Please check that you are connected to the internet.",
+                                Snackbar.LENGTH_SHORT).show();
                     }
                 }) {
             @Override
@@ -329,6 +346,9 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
             count++;
         }
         LatLngBounds bounds = builder.build();
+        if (progressDialog != null && progressDialog.isShowing()) {
+            progressDialog.dismiss();
+        }
         map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100));
     }
 
@@ -348,9 +368,17 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
         map.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
             @Override
             public boolean onMarkerClick(Marker marker) {
+                String BusStopId;
                 selectedMarker = marker;
-                getBusStopName(marker.getPosition());
-                getETA(marker.getTitle());
+                if (marker.getTitle().length() <= 6) {
+                    BusStopId = marker.getTitle();
+                }else{
+                    BusStopId = marker.getTitle().substring(marker.getTitle().indexOf("(") + 1,
+                            marker.getTitle().indexOf(")"));
+                }
+                getBusStopName(marker.getPosition(), BusStopId);
+                getETA(BusStopId);
+                marker.setTitle("");
                 return false;
             }
         });
@@ -363,7 +391,8 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
                 if (selectedBusStopName != null) {
                     b.putString("BusStopName", selectedBusStopName);
                 }
-                b.putString("busStopNo", marker.getTitle());
+                String busStopId = marker.getTitle().substring(marker.getTitle().indexOf("(") + 1, marker.getTitle().indexOf(")"));
+                b.putString("busStopNo", busStopId);
                 b.putParcelable("busStopPt", marker.getPosition());
                 sendBusStop.putExtras(b);
                 startActivity(sendBusStop);
@@ -422,7 +451,12 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
                     @Override
                     public void onErrorResponse(VolleyError error) {
                         Log.e("VOLLEY", "ERROR");
-                        Toast.makeText(getApplicationContext(), "That did not work:(", Toast.LENGTH_LONG).show();
+                        if (progressDialog != null && progressDialog.isShowing()) {
+                            progressDialog.dismiss();
+                        }
+                        Snackbar.make(findViewById(R.id.bus_arrival_parent_view),
+                                "Oh no! Something went wrong. Please check that you are connected to the internet.",
+                                Snackbar.LENGTH_SHORT).show();
                     }
                 }) {
             @Override
@@ -437,7 +471,7 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
         requestQueue.add(BusArrivalRequest);
     }
 
-    private void getBusStopName(LatLng busStopLocation) {
+    private void getBusStopName(LatLng busStopLocation, final String busStopId) {
         String url = getBusStopNameUrl(busStopLocation.latitude, busStopLocation.longitude);
         JsonObjectRequest BusStopNameRequest = new JsonObjectRequest(Request.Method.GET, url, null,
                 new Response.Listener<JSONObject>() {
@@ -449,6 +483,10 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
                             JSONObject BusStops = nearbyJA.getJSONObject(0);
                             selectedBusStopName = BusStops.getString("name");
                             Log.e("LATLNG TEST", selectedBusStopName);
+
+                            selectedMarker.setTitle(selectedBusStopName + " (" + busStopId + ")");
+                            selectedMarker.hideInfoWindow();
+                            selectedMarker.showInfoWindow();
                         } catch (JSONException e) {
                             e.printStackTrace();
                         }
@@ -457,6 +495,9 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
+                        if (progressDialog != null && progressDialog.isShowing()) {
+                            progressDialog.dismiss();
+                        }
                         Snackbar.make(findViewById(R.id.bus_arrival_parent_view),
                                 "Oh no! Something went wrong. Please check that you are connected to the internet.",
                                 Snackbar.LENGTH_SHORT).show();

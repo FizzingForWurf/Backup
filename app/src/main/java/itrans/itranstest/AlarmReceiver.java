@@ -13,6 +13,8 @@ import android.support.v4.content.WakefulBroadcastReceiver;
 import android.widget.Toast;
 
 import java.util.Calendar;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class AlarmReceiver extends WakefulBroadcastReceiver {
 
@@ -29,12 +31,19 @@ public class AlarmReceiver extends WakefulBroadcastReceiver {
                 PowerManager.ACQUIRE_CAUSES_WAKEUP, "");
         wl.acquire();
 
-//        Uri uri = Uri.parse(RingTone);//RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
-//        if (uri != null) {
-//            ringtone = RingtoneManager.getRingtone(context, uri);
-//            ringtone.play();
-//        }
-        Toast.makeText(context, RingTone, Toast.LENGTH_SHORT).show();
+        Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE); //Uri.parse(RingTone);
+        if (uri != null) {
+            ringtone = RingtoneManager.getRingtone(context, uri);
+            ringtone.play();
+        }
+        TimerTask task = new TimerTask() {
+            @Override
+            public void run() {
+                ringtone.stop();
+            }
+        };
+        Timer timer = new Timer();
+        timer.schedule(task, 3000);
 
         Toast.makeText(context, "Alarm !!!!!!!!!!", Toast.LENGTH_LONG).show();
         context.stopService(new Intent(context, MyLocationTrackingService.class));
@@ -53,7 +62,7 @@ public class AlarmReceiver extends WakefulBroadcastReceiver {
         Intent intent = new Intent(context, AlarmReceiver.class);
         alarmIntent = PendingIntent.getBroadcast(context, 0, intent, 0);
 
-        alarmMgr.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis() + 10 * 1000, alarmIntent);
+        alarmMgr.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis() + 1000, alarmIntent);
     }
 
     public void CancelAlarm(Context context) {

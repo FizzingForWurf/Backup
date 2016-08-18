@@ -1,8 +1,10 @@
 package itrans.itranstest;
 
 import android.app.Dialog;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -30,6 +32,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
@@ -63,7 +66,9 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import itrans.itranstest.Internet.VolleySingleton;
 
@@ -83,6 +88,13 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
     private List<NearbySuggestions> mResultsList = new ArrayList<>();
     private List<NearbySuggestions> mBusStopList = new ArrayList<>();
 
+    private List<Double> singleCoordinates = new ArrayList<>();
+    private List<List<Double>> busCoordinates = new ArrayList<>();
+    private List<Integer> finished = new ArrayList<>();
+    private int counting = 0;
+    private int count = 0;
+    private boolean dontCall;
+
     private VolleySingleton volleySingleton;
     private RequestQueue requestQueue;
 
@@ -91,7 +103,14 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
     private int setRadius = 500;
     private String query;
 
+    private String placeId;
+    private String placeName;
+    private Double placeLat;
+    private Double placeLng;
+
     private SharedPreferences prefs;
+
+    private ProgressDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -209,6 +228,9 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
                             }, new Response.ErrorListener() {
                         @Override
                         public void onErrorResponse(VolleyError error) {
+                            if (progressDialog != null && progressDialog.isShowing()) {
+                                progressDialog.dismiss();
+                            }
                             Snackbar.make(findViewById(R.id.parent_view),
                                     "Oh no! Something went wrong. Please check that you are connected to the internet.",
                                     Snackbar.LENGTH_SHORT).show();
@@ -238,13 +260,14 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
         });
 
         mSearchView.setOnSearchListener(new FloatingSearchView.OnSearchListener() {
-            String placeId;
-            String placeName;
-            Double placeLat;
-            Double placeLng;
-
             @Override
             public void onSuggestionClicked(SearchSuggestion searchSuggestion) {
+                if (progressDialog == null) {
+                    progressDialog = new ProgressDialog(NearbyBusStops.this);
+                    progressDialog.setMessage("Locating nearby bus stops...");
+                    progressDialog.setCancelable(false);
+                }
+                progressDialog.show();
                 String selectedPlace1 = searchSuggestion.getBody();
                 String selectedPlace2 = selectedPlace1.substring(selectedPlace1.indexOf("(") + 1, selectedPlace1.indexOf(")"));
                 final String selectedPlace = capitalisePhrase(selectedPlace2);
@@ -276,6 +299,9 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
                         }, new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
+                        if (progressDialog != null && progressDialog.isShowing()) {
+                            progressDialog.dismiss();
+                        }
                         Snackbar.make(findViewById(R.id.parent_view),
                                 "Oh no! Something went wrong. Please check that you are connected to the internet.",
                                 Snackbar.LENGTH_SHORT).show();
@@ -297,12 +323,18 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
                     case R.id.menu_range:
                             createSetRangeDialog();
                         break;
-                    case R.id.menu_color:
-
-                        break;
                     case R.id.menu_bus_stop:
                         mSearchView.setSearchText("");
-                        findNearbyBusStops("You are here", mLastLocation.getLatitude(),mLastLocation.getLongitude());
+                        placeName = "You are here";
+                        placeLat = mLastLocation.getLatitude();
+                        placeLng = mLastLocation.getLongitude();
+                        if (progressDialog == null) {
+                            progressDialog = new ProgressDialog(NearbyBusStops.this);
+                            progressDialog.setMessage("Locating nearby bus stops...");
+                            progressDialog.setCancelable(false);
+                        }
+                        progressDialog.show();
+                        findNearbyBusStops(placeName, placeLat, placeLng);
                         break;
                 }
             }
@@ -368,6 +400,9 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
             public void onClick(DialogInterface dialog,int id) {
                 prefs.edit().putInt("nearbyBusStopRadius", setRadius).apply();
                 Radius = setRadius;
+                if (setRadius != previousRadius && nearbyBusStopsCirle != null){
+                    findNearbyBusStops(placeName, placeLat, placeLng);
+                }
             }
         });
 
@@ -380,9 +415,16 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
     }
 
     private void findNearbyBusStops(String placeName, double lat, double lng) {
+        map.clear();
+        counting = 0;
         if (!mBusStopList.isEmpty()) {
             mBusStopList.clear();
-            map.clear();
+        }
+        if (!busCoordinates.isEmpty()){
+            busCoordinates.clear();
+        }
+        if (!finished.isEmpty()){
+            finished.clear();
         }
         LatLng placeLatLng = new LatLng(lat, lng);
         map.animateCamera(CameraUpdateFactory.newLatLngZoom(placeLatLng, getZoomLevel()));
@@ -430,10 +472,18 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
 
                             if (mBusStopList.size() > 0) {
                                 for (int i = 0; i < mBusStopList.size(); i++) {
-                                    createMarker(mBusStopList.get(i).getBusStopName(),
-                                            mBusStopList.get(i).getBusStopLat(),
-                                            mBusStopList.get(i).getBusStopLng());
+//                                    createMarker(mBusStopList.get(i).getBusStopName(),
+//                                            mBusStopList.get(i).getBusStopLat(),
+//                                            mBusStopList.get(i).getBusStopLng());
+                                    singleCoordinates = new ArrayList<Double>();
+                                    singleCoordinates.add(mBusStopList.get(i).getBusStopLat());
+                                    singleCoordinates.add(mBusStopList.get(i).getBusStopLng());
+                                    busCoordinates.add(singleCoordinates);
                                 }
+                                callToGetBusStopId();
+//                                if (progressDialog != null && progressDialog.isShowing()) {
+//                                    progressDialog.dismiss();
+//                                }
                             }
                         } catch (JSONException e) {
                             e.printStackTrace();
@@ -442,12 +492,99 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
                 }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
+                if (progressDialog != null && progressDialog.isShowing()) {
+                    progressDialog.dismiss();
+                }
                 Snackbar.make(findViewById(R.id.parent_view),
                         "Oh no! Something went wrong. Please check that you are connected to the internet.",
                         Snackbar.LENGTH_SHORT).show();
             }
         });
         requestQueue.add(nearbyBusStopRequest);
+    }
+
+    private void callToGetBusStopId() {
+        dontCall = false;
+        count += 50;
+        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, "http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip="+String.valueOf(count), null,
+                new Response.Listener<JSONObject>() {
+                    @Override
+                    public void onResponse(JSONObject response) {
+                        try {
+                            JSONArray jsonArray = response.getJSONArray("value");
+                            for (int i = 0; i < jsonArray.length(); i++) {
+                                counting = 0;
+                                JSONObject services = jsonArray.getJSONObject(i);
+                                if(finished.size() == busCoordinates.size()){
+                                    dontCall = true;
+                                }else{
+                                    Double Latitude = services.getDouble("Latitude");
+                                    Double Longitude = services.getDouble("Longitude");
+                                    Location actualBusStop = new Location("actual");
+                                    actualBusStop.setLatitude(Latitude);
+                                    actualBusStop.setLongitude(Longitude);
+                                    for(int s = 0; s < busCoordinates.size(); s++) { //List<Double> coordinates:busCoordinates
+                                        Log.e("BUS COORDINATES SIZE", Integer.toString(busCoordinates.size()));
+                                        if(!finished.contains(counting)) { //
+                                            Location givenBusStop = new Location("given");
+                                            givenBusStop.setLatitude(busCoordinates.get(s).get(0));
+                                            givenBusStop.setLongitude(busCoordinates.get(s).get(1));
+                                            Log.e("BUS STOP FROM ACTUAL", String.valueOf(actualBusStop.distanceTo(givenBusStop)));
+                                            if ((actualBusStop.distanceTo(givenBusStop)) <= 2) {
+                                                String busCode = services.getString("BusStopCode");
+                                                LatLng busPosition = new LatLng(Latitude, Longitude);
+                                                int height = 50;
+                                                int width = 50;
+                                                BitmapDrawable bitmapdraw = (BitmapDrawable)getResources().getDrawable(R.drawable.nearby_marker);
+                                                Bitmap b = bitmapdraw.getBitmap();
+                                                Bitmap smallMarker = Bitmap.createScaledBitmap(b, width, height, false);
+                                                map.addMarker(new MarkerOptions()
+                                                        .position(busPosition)
+                                                        .title(mBusStopList.get(s).getBusStopName())
+                                                        .snippet(String.valueOf(busCode))
+                                                        .icon(BitmapDescriptorFactory.fromBitmap(smallMarker)));
+                                                finished.add(counting);
+                                            }
+                                        }
+                                        counting++;
+                                    }
+                                    if (progressDialog != null && progressDialog.isShowing()) {
+                                        progressDialog.dismiss();
+                                    }
+                                }
+
+                            }
+                            if(!dontCall) {
+                                callToGetBusStopId();
+                            }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                            Toast.makeText(getApplicationContext(), "Error", Toast.LENGTH_LONG).show();
+                        }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Log.e("VOLLEY", "ERROR");
+                        if (progressDialog != null && progressDialog.isShowing()) {
+                            progressDialog.dismiss();
+                        }
+                        Snackbar.make(findViewById(R.id.parent_view),
+                                "Oh no! Something went wrong. Please check that you are connected to the internet.",
+                                Snackbar.LENGTH_SHORT).show();
+                    }
+                }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                HashMap<String, String> headers = new HashMap<String, String>();
+                headers.put("AccountKey", "3SnRYzr/X0eKp2HvwTYtmg==");
+                headers.put("UniqueUserID", "0bf7760d-15ec-4a1b-9c82-93562fcc9798");
+                headers.put("accept", "application/json");
+                return headers;
+            }
+        };
+        requestQueue.add(jsonObjectRequest);
     }
 
     private int getZoomLevel() {
@@ -495,10 +632,25 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
         map.setMyLocationEnabled(true);
         map.getUiSettings().setMyLocationButtonEnabled(false);
         map.getUiSettings().setMapToolbarEnabled(false);
-        map.getUiSettings().setCompassEnabled(true);
-        map.animateCamera(CameraUpdateFactory.newLatLngZoom(previousLatLng, 16));
+        if (previousLatLng != null) {
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(previousLatLng, 16));
+        }
         buildGoogleApiClient();
         mGoogleApiClient.connect();
+
+        map.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
+            @Override
+            public void onInfoWindowClick(Marker marker) {
+                Intent sendBusStop = new Intent(NearbyBusStops.this, BusArrivalTiming.class);
+                Bundle b = new Bundle();
+                b.putString("BusStopName", marker.getTitle());
+                b.putString("busStopNo", marker.getSnippet());
+                b.putParcelable("busStopPt", marker.getPosition());
+                sendBusStop.putExtras(b);
+                startActivity(sendBusStop);
+                overridePendingTransition(R.anim.slide_in, R.anim.slide_out);
+            }
+        });
     }
 
 
@@ -610,6 +762,21 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
 
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (mGoogleApiClient != null)
+        mGoogleApiClient.connect();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (mGoogleApiClient != null){
+            mGoogleApiClient.disconnect();
+        }
     }
 
     @Override

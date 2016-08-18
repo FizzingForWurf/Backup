@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -18,11 +19,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.JsonObjectRequest;
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.common.GooglePlayServicesRepairableException;
 import com.google.android.gms.common.api.Status;
@@ -40,15 +37,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.List;
 
 import itrans.itranstest.Internet.VolleySingleton;
 
@@ -59,17 +48,13 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
     private Marker myMapMarker;
     private Circle myCirleRadius;
     private LatLng selectedLocation;
-    private LatLng previousLatLng; //From MainActivity only!
-
-    //Testing geocoding:
-    private String geoCodedAddress;
 
     private String finalLatLong;
     private EditText etTitle;
-    private CardView cvDestination, cvRingTone, cvBusRoutes;
+    private CardView cvDestination, cvRingTone;
     private ImageView ivPickMap;
     private Button btnDone, btnCancel;
-    private TextView tvDestination, tvRadiusIndicator, tvCurrentRingTone, tvBusRoutes;
+    private TextView tvDestination, tvRadiusIndicator, tvCurrentRingTone;
     private SeekBar radiusSeekbar;
 
     private static final int PLACE_AUTOCOMPLETE_REQUEST_CODE = 1;
@@ -86,7 +71,8 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
     private VolleySingleton volleySingleton;
     private RequestQueue requestQueue;
 
-    private List<BusRoutes> busRoutesList = new ArrayList<>();
+    private boolean isUpdate = false;
+    private int updateDestinationRowNumber;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -106,13 +92,6 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
             actionBar.setDisplayHomeAsUpEnabled(true);
         }
 
-        Bundle extras = getIntent().getExtras();
-        if (extras != null) {
-            Double lat = extras.getDouble("LastLat");
-            Double lon = extras.getDouble("LastLng");
-            previousLatLng = new LatLng(lat, lon);
-        }
-
         volleySingleton = VolleySingleton.getInstance();
         requestQueue = volleySingleton.getRequestQueue();
 
@@ -120,21 +99,61 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
         etTitle = (EditText) findViewById(R.id.etTitle);
         cvDestination = (CardView) findViewById(R.id.cvDestination);
         cvRingTone = (CardView) findViewById(R.id.cvRingTone);
-        cvBusRoutes = (CardView) findViewById(R.id.cvBusRoutes);
         btnCancel = (Button) findViewById(R.id.btnCancel);
         btnDone = (Button) findViewById(R.id.btnDone);
         tvDestination = (TextView) findViewById(R.id.tvDestination);
         tvRadiusIndicator = (TextView) findViewById(R.id.tvRadiusIndicator);
         tvCurrentRingTone = (TextView) findViewById(R.id.tvCurrentRingTone);
-        tvBusRoutes = (TextView) findViewById(R.id.tvBusRoutes);
         radiusSeekbar = (SeekBar) findViewById(R.id.radiusSeekbar);
+
+        Bundle extras = getIntent().getExtras();
+        if (extras != null) {
+            setTitle("Edit destination");
+            isUpdate = true;
+            updateDestinationRowNumber = extras.getInt("updateRowNumber");
+            String Title = extras.getString("updateTitle");
+            String Destination = extras.getString("updateDestination");
+            String LatLng = extras.getString("updateLatLng");
+            String Radius = extras.getString("updateRadius");
+            selectedRingTone = extras.getString("updateRingTone");
+
+            etTitle.setText(Title);
+            tvDestination.setText(Destination);
+            finalRadius = Integer.parseInt(Radius);
+            entryRadius = Integer.toString(finalRadius);
+            DecimalFormat df = new DecimalFormat("####0.00");
+            if (radius >= 1000) {
+                tvRadiusIndicator.setText(df.format(radius / 1000) + "km");
+            } else {
+                tvRadiusIndicator.setText(finalRadius + "m");
+            }
+
+            progressChange = (finalRadius - 50)/50;
+            radiusSeekbar.setProgress(progressChange);
+
+            if (finalRadius >= 900 && finalRadius <= 1300){
+                tvRadiusIndicator.setTextColor(Color.parseColor("#4CAF50"));
+            }else if ((finalRadius >= 500 && finalRadius < 900) || (finalRadius > 1300 && finalRadius <= 1600)){
+                tvRadiusIndicator.setTextColor(Color.parseColor("#FF9800"));
+            }else {
+                tvRadiusIndicator.setTextColor(Color.parseColor("#F44336"));
+            }
+
+            finalLatLong = LatLng;
+            String[] latANDlong = new String[0];
+            if (LatLng != null) {
+                latANDlong = LatLng.split(",");
+            }
+            double latitude = Double.parseDouble(latANDlong[0]);
+            double longitude = Double.parseDouble(latANDlong[1]);
+            selectedLocation = new LatLng(latitude, longitude);
+        }
 
         btnCancel.setOnClickListener(this);
         btnDone.setOnClickListener(this);
         ivPickMap.setOnClickListener(this);
         cvDestination.setOnClickListener(this);
         cvRingTone.setOnClickListener(this);
-        cvBusRoutes.setOnClickListener(this);
         radiusSeekbar.setOnSeekBarChangeListener(this);
 
         uriRingTone = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
@@ -147,10 +166,17 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
         switch (item.getItemId()) {
             case android.R.id.home:
                 this.finish();
+                overridePendingTransition(R.anim.slide_enter, R.anim.slide_exit);
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
+    }
+
+    @Override
+    public void onBackPressed() {
+        this.finish();
+        overridePendingTransition(R.anim.slide_enter, R.anim.slide_exit);
     }
 
     @Override
@@ -179,27 +205,47 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
                 break;
             case R.id.btnCancel:
                 this.finish();
+                overridePendingTransition(R.anim.slide_enter, R.anim.slide_exit);
                 break;
             case R.id.btnDone:
-                if (tvDestination.getText().toString().equals("")) {
-                    Toast.makeText(getApplicationContext(), "Please select your destination before proceeding", Toast.LENGTH_SHORT).show();
-                }else if (etTitle.getText().toString().equals("")){
-                    Toast.makeText(getApplicationContext(), "Please enter a title before proceeding", Toast.LENGTH_SHORT).show();
-                }else {
+                if (isUpdate){
                     String addTitle = etTitle.getText().toString();
                     String addDestination = tvDestination.getText().toString();
                     try {
-                        DBAdapter inputDestination = new DBAdapter(AddDestination.this);
-                        inputDestination.open();
-                        inputDestination.insertEntry(addTitle, addDestination, finalLatLong, entryRadius, selectedRingTone);
-                        inputDestination.close();
-                    } catch (Exception e) {
+                        if (tvDestination.getText().toString().equals("")) {
+                            Toast.makeText(getApplicationContext(), "Please select your destination before proceeding", Toast.LENGTH_SHORT).show();
+                        } else if (etTitle.getText().toString().equals("")) {
+                            Toast.makeText(getApplicationContext(), "Please enter a title before proceeding", Toast.LENGTH_SHORT).show();
+                        }else {
+                            DBAdapter dbAdapter = new DBAdapter(AddDestination.this);
+                            dbAdapter.open();
+                            dbAdapter.updateEntry(updateDestinationRowNumber, addTitle, addDestination, finalLatLong, entryRadius, selectedRingTone);
+                            dbAdapter.close();
+                            Toast.makeText(getApplicationContext(), "Entry updated!", Toast.LENGTH_SHORT).show();
+                            this.finish();
+                        }
+                    }catch (Exception e){
                         e.printStackTrace();
-
-                    } finally {
-                        Toast.makeText(getApplicationContext(), "Destination entry added!", Toast.LENGTH_SHORT).show();
                     }
-                    this.finish();
+                }else {
+                    if (tvDestination.getText().toString().equals("")) {
+                        Toast.makeText(getApplicationContext(), "Please select your destination before proceeding", Toast.LENGTH_SHORT).show();
+                    } else if (etTitle.getText().toString().equals("")) {
+                        Toast.makeText(getApplicationContext(), "Please enter a title before proceeding", Toast.LENGTH_SHORT).show();
+                    } else {
+                        String addTitle = etTitle.getText().toString();
+                        String addDestination = tvDestination.getText().toString();
+                        try {
+                            DBAdapter inputDestination = new DBAdapter(AddDestination.this);
+                            inputDestination.open();
+                            inputDestination.insertEntry(addTitle, addDestination, finalLatLong, entryRadius, selectedRingTone);
+                            inputDestination.close();
+                            Toast.makeText(getApplicationContext(), "Entry added!", Toast.LENGTH_SHORT).show();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        this.finish();
+                    }
                 }
                 break;
             case R.id.cvRingTone:
@@ -211,14 +257,6 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
                 intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false);
                 intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true);
                 startActivityForResult(intent, TONE_PICKER);
-                break;
-            case R.id.cvBusRoutes:
-                if (tvDestination.getText().equals("")){
-                    Toast.makeText(AddDestination.this, "Please select a destination first.", Toast.LENGTH_SHORT).show();
-                }else{
-                    //check if have routes available in the list then
-                    //create dialog with listview?
-                }
                 break;
         }
     }
@@ -233,15 +271,10 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
                 String address = String.format("%s", chosenDestination.getAddress());
                 if (address.equals("")) {
                     tvDestination.setText(latlong);
-//                    geocodeCoordinates(latlong);
-//                    tvDestination.setText(geoCodedAddress);
                 }else {
                     tvDestination.setText(address);
                 }
                 processlatlng(latlong);
-                if (latlong != null) {
-                    findBusRoutes();
-                }
             }
         }
         if (requestCode == PLACE_AUTOCOMPLETE_REQUEST_CODE) {
@@ -256,9 +289,6 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
             } else if (resultCode == PlaceAutocomplete.RESULT_ERROR) {
                 Status status = PlaceAutocomplete.getStatus(this, data);
             }
-            if (latlong != null) {
-                findBusRoutes();
-            }
         }
         if (requestCode == TONE_PICKER) {
             if (resultCode == RESULT_OK) {
@@ -267,96 +297,11 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
                 if (uriRingTone != null) {
                     String NameOfRingTone = ringTone.getTitle(getApplicationContext());
                     selectedRingTone = uriRingTone.toString();
-                    tvCurrentRingTone.setText(selectedRingTone);//NameOfRingTone);
+                    tvCurrentRingTone.setText(NameOfRingTone);//NameOfRingTone);
                 }
             }
         }
     }
-
-    private void findBusRoutes() {
-        if (!busRoutesList.isEmpty()){
-            busRoutesList.clear();
-        }
-        //connect to the internet, get results, display textView
-        String busRouteUrl = getDirectionUrl();
-        JsonObjectRequest busRouteRequest = new JsonObjectRequest(Request.Method.GET, busRouteUrl, null,
-                new Response.Listener<JSONObject>() {
-                    @Override
-                    public void onResponse(JSONObject response) {
-                        JSONArray resultsJA;
-                        try {
-                            resultsJA = response.getJSONArray("routes");
-                            for (int i = 0; i < resultsJA.length(); i++){
-                                JSONObject resultObj = resultsJA.getJSONObject(i);
-
-                                JSONArray routesJA = resultObj.getJSONArray("legs");
-                                for (int s = 0; s < routesJA.length(); s++) {
-                                    JSONObject infoObj = routesJA.getJSONObject(s);
-                                    JSONObject departureObj = infoObj.getJSONObject("departure_time");
-                                    JSONObject arrivalObj = infoObj.getJSONObject("arrival_time");
-                                    String departureTime = departureObj.getString("text");
-                                    String arrivalTime = arrivalObj.getString("text");
-                                    String duration = infoObj.getString("duration");
-
-                                    JSONArray stepsJA = infoObj.getJSONArray("steps");
-                                    for (int a = 0; a < stepsJA.length(); a++){
-                                        JSONObject segments = stepsJA.getJSONObject(a);
-                                        JSONObject durationObj = segments.getJSONObject("duration");
-                                        String segmentDuration = durationObj.getString("text");
-                                        String transportMode = segments.getString("travel_mode");
-
-                                        if (segments.has("transit_details")){
-                                            JSONObject transitDetails = segments.getJSONObject("transit_details");
-                                            String numberOfStops = transitDetails.getString("num_stops");
-                                            JSONObject busDetails = transitDetails.getJSONObject("line");
-                                            String busNumber = busDetails.getString("short_name");
-                                        }
-                                    }
-                                }
-                            }
-                            if (resultsJA.length() >= 1) {
-                                if (resultsJA.length() == 1) {
-                                    tvBusRoutes.setText(Integer.toString(resultsJA.length()) + " route available.");
-                                }else{
-                                    tvBusRoutes.setText(Integer.toString(resultsJA.length()) + " routes available.");
-                                }
-                            }else{
-                                tvBusRoutes.setText("No routes available.");
-                            }
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-
-            }
-        });
-        requestQueue.add(busRouteRequest);
-    }
-
-//    private String geocodeCoordinates(String latlong){
-//        String rawlatlong = latlong.substring(latlong.indexOf("(")+1,latlong.indexOf(")"));
-//        String[] latANDlong =  rawlatlong.split(",");
-//        double Lat = Double.parseDouble(latANDlong[0]);
-//        double Lon = Double.parseDouble(latANDlong[1]);
-//        Geocoder gc = new Geocoder(AddDestination.this, Locale.getDefault());
-//
-//        try {
-//            List<Address> addresses = gc.getFromLocation(Lat,Lon,1);
-//            StringBuilder builderString = new StringBuilder();
-//            if (addresses.size() > 0){
-//                Address address = addresses.get(0);
-//                for (int i = 0; i < address.getMaxAddressLineIndex(); i++){
-//                    builderString.append(address.get)
-//                }
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//        return geoCodedAddress;
-//    }
 
     private void processlatlng(String latlong) {
         String rawlatlong = latlong.substring(latlong.indexOf("(")+1,latlong.indexOf(")"));
@@ -415,6 +360,10 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
     public void onMapReady(GoogleMap googleMap) {
         map = googleMap;
         map.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+
+        if (isUpdate && selectedLocation != null){
+            changeMapLocation(selectedLocation);
+        }
     }
 
     @Override
@@ -451,29 +400,5 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
         radius = 50 + (progressChange * 50);
         finalRadius = (int) radius;
         entryRadius = Integer.toString(finalRadius);
-    }
-
-    private String getDirectionUrl() {
-        String origin = Double.toString(previousLatLng.latitude) + "," + Double.toString(previousLatLng.longitude);
-        StringBuilder urlString = new StringBuilder();
-        urlString.append("https://maps.googleapis.com/maps/api/directions/json?");
-        urlString.append("origin=");
-        try {
-            urlString.append(URLEncoder.encode(origin, "utf8"));
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-        urlString.append("&destination=");
-        try {
-            urlString.append(URLEncoder.encode(finalLatLong, "utf8"));
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-        urlString.append("&mode=transit");
-        urlString.append("&transit_mode=bus");
-        urlString.append("&traffic_model=best_guess");
-        urlString.append("&language=en");
-        urlString.append("&key=" + "AIzaSyBF6n8sKZwuq_kr5FXmL3k2xLO_7fz77eE");
-        return urlString.toString();
     }
 }

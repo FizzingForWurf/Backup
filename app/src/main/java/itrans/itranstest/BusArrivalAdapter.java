@@ -4,6 +4,7 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.CountDownTimer;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -51,8 +52,8 @@ public class BusArrivalAdapter extends RecyclerView.Adapter<BusArrivalAdapter.My
     @Override
     public void onBindViewHolder(final MyViewHolder holder, int position){
         if(Positions.isEmpty()){
-            for(int i =0;i<busServices.size();i++) {
-                Positions.add(0);
+            for(int i = 0; i < busServices.size(); i++) {
+                Positions.add(i);
             }
         }
         final BusDetails bus = busServices.get(position);
@@ -88,9 +89,14 @@ public class BusArrivalAdapter extends RecyclerView.Adapter<BusArrivalAdapter.My
         }catch(Exception e){
             e.printStackTrace();
         }
-
-        counter(holder, holder.getAdapterPosition(), diff);
-
+        int difference = ((int) diff)/60000;
+        Log.e("BUS ARRIVAL TIMING TEST", Integer.toString(difference));
+        if (difference >= 1) {
+            holder.ETA.setText(difference + " min");
+        }else{
+            holder.ETA.setText("Arriving");
+        }
+        //counter(holder, holder.getAdapterPosition(), diff);
     }
 
     public void counter(final MyViewHolder holder, int position, long diff){
@@ -101,20 +107,18 @@ public class BusArrivalAdapter extends RecyclerView.Adapter<BusArrivalAdapter.My
         }
         timing = new CountDownTimer(diff, 10000) {
             public void onTick(long millisUntilFinished) {
-                if(millisUntilFinished<60000) {
+                if(millisUntilFinished < 60000) {
                     holder.ETA.setText("Arriving");
                 }else {
                     holder.ETA.setText(String.valueOf(millisUntilFinished / 60000) + " min");
                 }
             }
             public void onFinish() {
-                holder.ETA.append(String.valueOf(holder.getAdapterPosition()));
-
+                //holder.ETA.append(String.valueOf(holder.getAdapterPosition()));
             }
 
         };
         timing.start();
-
     }
 
     @Override

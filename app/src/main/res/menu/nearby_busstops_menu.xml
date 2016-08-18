@@ -13,9 +13,4 @@
         android:title="Set range"
         app:showAsAction="never" />
 
-    <item
-        android:id="@+id/menu_color"
-        android:title="Set range color"
-        app:showAsAction="never" />
-
 </menu>

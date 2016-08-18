@@ -7,6 +7,8 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 
+import java.util.ArrayList;
+
 public class DBAdapter {
 
     private static final String DATABASE_NAME = "destinationDB.db";
@@ -86,6 +88,17 @@ public class DBAdapter {
         return null;
     }
 
+    public void updateEntry(int rowNumber, String newTitle, String newDestination, String newLatLng, String newRadius, String newRingTone){
+        ContentValues updatedValues = new ContentValues();
+        updatedValues.put(ENTRY_TITLE, newTitle);
+        updatedValues.put(ENTRY_DESTINATION, newDestination);
+        updatedValues.put(ENTRY_LATLNG, newLatLng);
+        updatedValues.put(ENTRY_ALERTRADIUS, newRadius);
+        updatedValues.put(ENTRY_RINGTONE, newRingTone);
+
+        _db.update(DATABASE_TABLE, updatedValues, KEY_ID + "=" + rowNumber,null);
+    }
+
     public class MyDBOpenHelper extends SQLiteOpenHelper {
         public MyDBOpenHelper(Context context)	{
             super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -145,4 +158,35 @@ public class DBAdapter {
         return c;
     }
 
+    public void deleteAllEntries(){
+        _db.delete(DATABASE_TABLE, null, null);
+    }
+
+    public void deleteEntry(int rowNumber){
+        _db.delete(DATABASE_TABLE, KEY_ID + "=" + rowNumber, null);
+    }
+
+    public ArrayList<AlarmsDeleteHelper> getAllEntriesIntoArrayList(){
+        ArrayList<AlarmsDeleteHelper> mArrayList = new ArrayList<AlarmsDeleteHelper>();
+
+        String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
+        Cursor cursor = _db.query(true,DATABASE_TABLE, columns, null, null, null, null, null, null);
+        if (cursor != null){
+            if (cursor.moveToFirst()) {
+
+                do {
+                    AlarmsDeleteHelper helper = new AlarmsDeleteHelper();
+                    helper.setTitle(cursor.getString(cursor.getColumnIndex(ENTRY_TITLE)));
+                    helper.setDestination(cursor.getString(cursor.getColumnIndex(ENTRY_DESTINATION)));
+                    helper.setLatLng(cursor.getString(cursor.getColumnIndex(ENTRY_LATLNG)));
+                    helper.setRadius(cursor.getString(cursor.getColumnIndex(ENTRY_ALERTRADIUS)));
+                    helper.setRingTone(cursor.getString(cursor.getColumnIndex(ENTRY_RINGTONE)));
+
+                    mArrayList.add(helper);
+                } while (cursor.moveToNext());
+            }
+            cursor.close();
+        }
+        return mArrayList;
+    }
 }

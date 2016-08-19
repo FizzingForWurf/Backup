@@ -3,11 +3,9 @@ package itrans.itranstest;
 import android.Manifest;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -18,12 +16,8 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.provider.Settings;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.design.widget.CoordinatorLayout;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
-import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -33,32 +27,17 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.ContextMenu;
-import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AbsListView;
 import android.widget.AdapterView;
-import android.widget.FrameLayout;
 import android.widget.ListView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GooglePlayServicesUtil;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.PendingResult;
-import com.google.android.gms.common.api.ResultCallback;
-import com.google.android.gms.common.api.Status;
-import com.google.android.gms.location.LocationListener;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.LocationSettingsRequest;
-import com.google.android.gms.location.LocationSettingsResult;
-import com.google.android.gms.location.LocationSettingsStates;
-import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -114,8 +93,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     private SharedPreferences prefs;
     int number;
 
-    private ProgressDialog deleteProgressDialog;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -159,20 +136,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                 }
             }
         });
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == REQUEST_CODE_RECOVER_PLAY_SERVICES) {
-            if (resultCode == RESULT_OK) {
-                // Make sure the app is not already connected or attempting to connect
-
-            } else if (resultCode == RESULT_CANCELED) {
-                Toast.makeText(getApplicationContext(), "Google Play Services must be installed.",
-                        Toast.LENGTH_SHORT).show();
-                finish();
-            }
-        }
     }
 
     @Override
@@ -601,15 +564,21 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     public boolean onNavigationItemSelected(MenuItem item) {
         // Handle navigation view item clicks here.
         int id = item.getItemId();
-        if (id == R.id.nav_camera) {
 
-        } else if (id == R.id.nav_feedback) {
+        if (id == R.id.nav_feedback) {
             Intent a = new Intent(MainActivity.this, Feedback.class);
             startActivity(a);
         } else if (id == R.id.nav_about) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+            builder.setTitle("About us");
+            builder.setMessage("We are iTans, a group of Secondary 3s from Hwa Chong Institution, " +
+                    "and we present an app that makes your everyday commuting much easier.");
 
+            AlertDialog alert = builder.create();
+            alert.show();
         } else if (id == R.id.nav_settings) {
-
+//            Intent c = new Intent(MainActivity.this, Settings.class);
+//            startActivity(c);
         } else if (id == R.id.nav_nearbyBus) {
             Intent i = new Intent(MainActivity.this, NearbyBusStops.class);
             if (mLastLocation != null) {
@@ -663,42 +632,37 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                 overridePendingTransition(R.anim.slide_in, R.anim.slide_out);
                 break;
             case R.id.deleteAlarmMenu:
-                if (deleteProgressDialog == null){
-                    deleteProgressDialog = new ProgressDialog(MainActivity.this);
-                    deleteProgressDialog.setMessage("Deleting...");
-                    deleteProgressDialog.setCancelable(false);
+                if (positionOfActivatedSwitch < 0) {
+                    AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
+                    int positionOfDeletedEntry = info.position;
+                    DBAdapter db = new DBAdapter(this);
+                    db.open();
+                    Log.e("DELETE POSITION", String.valueOf(positionOfDeletedEntry));
+                    int lastEntryNumber = db.getNumberOfRows();
+                    Log.e("DELETE ACTUAL", String.valueOf(lastEntryNumber));
+                    int numberOfEntriesAfterDeletedEntry = lastEntryNumber - (positionOfDeletedEntry + 1);
+                    db.deleteEntry(positionOfDeletedEntry + 1);
+                    int testing = db.getNumberOfRows();
+                    Log.e("DELETE TEST", String.valueOf(testing));
+
+                    for (int w = 0; w < numberOfEntriesAfterDeletedEntry; w++) {
+                        int positionOfEntryNeededToBeChanged = w + positionOfDeletedEntry + 2;
+
+                        db.updateUniqueId(positionOfEntryNeededToBeChanged);
+                        Log.e("DELETE W", String.valueOf(positionOfEntryNeededToBeChanged));
+                    }
+
+                    //check row sequence for debugging
+                    ArrayList<String> arrayList;
+                    arrayList = db.getIdList();
+                    Log.e("DELETE ARRAY", String.valueOf(arrayList));
+
+                    db.close();
+                }else {
+                    Toast.makeText(MainActivity.this, "Please turn off active alarm to delete entries.", Toast.LENGTH_SHORT).show();
                 }
-                deleteProgressDialog.show();
-                AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo)item.getMenuInfo();
-                DBAdapter db = new DBAdapter(this);
-                db.open();
-                db.deleteEntry(info.position + 1);
-                Log.e("DELETE", "DELETE SINGLE ENTRY");
-
-                ArrayList<AlarmsDeleteHelper> deleteHelperArrayList;
-                deleteHelperArrayList = db.getAllEntriesIntoArrayList();
-                Log.e("DELETE", "GET AFTER DELETE NUMBER " + String.valueOf(deleteHelperArrayList.size()));
-
-                db.deleteAllEntries();
-                Log.e("DELETE", "DELETE all ENTRY");
-
-                for (int e = 0; e < deleteHelperArrayList.size(); e++){
-                    String Title = deleteHelperArrayList.get(e).getTitle();
-                    String Destination = deleteHelperArrayList.get(e).getDestination();
-                    String LatLng = deleteHelperArrayList.get(e).getLatLng();
-                    String Radius = deleteHelperArrayList.get(e).getRadius();
-                    String RingTone = deleteHelperArrayList.get(e).getRingTone();
-                    db.insertEntry(Title, Destination, LatLng, Radius, RingTone);
-                    Log.e("DELETE", "CURRENTLY ADDING: " + String.valueOf(e));
-                }
-                Log.e("DELETE", "RESTORE DATA BACK INTO BANK");
-                db.close();
                 populateListViewFromDatabase();
                 toggleVisibility();
-                Log.e("DELETE", "DELETE COMPLETE");
-                if (deleteProgressDialog != null && deleteProgressDialog.isShowing()) {
-                    deleteProgressDialog.dismiss();
-                }
                 break;
         }
         return super.onContextItemSelected(item);

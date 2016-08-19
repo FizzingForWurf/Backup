@@ -8,6 +8,7 @@ import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.PowerManager;
+import android.os.Vibrator;
 import android.provider.AlarmClock;
 import android.support.v4.content.WakefulBroadcastReceiver;
 import android.widget.Toast;
@@ -32,6 +33,9 @@ public class AlarmReceiver extends WakefulBroadcastReceiver {
         wl.acquire();
 
         Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE); //Uri.parse(RingTone);
+        long[] pattern = {0, 750, 500, 750, 500, 750, 500, 750, 500, 750, 500};
+        Vibrator v = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+        v.vibrate(pattern, -1);
         if (uri != null) {
             ringtone = RingtoneManager.getRingtone(context, uri);
             ringtone.play();

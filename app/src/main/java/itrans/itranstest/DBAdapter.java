@@ -3,6 +3,7 @@ package itrans.itranstest;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.DatabaseUtils;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
@@ -20,13 +21,14 @@ public class DBAdapter {
     private SQLiteDatabase _db;
 
     public static final String KEY_ID = "_id";
+    public static final String UNIQUE_ID = "unique_id";
     public static final String ENTRY_TITLE = "entry_title";
     public static final String ENTRY_DESTINATION = "entry_destination";
     public static final String ENTRY_LATLNG = "entry_latlng";
     public static final String ENTRY_RINGTONE = "entry_ringtone";
     public static final String ENTRY_ALERTRADIUS = "entry_alertradius";
 
-    protected static final String DATABASE_CREATE = "CREATE TABLE " + DATABASE_TABLE + " (" + KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " + ENTRY_TITLE + " TEXT NOT NULL, "
+    protected static final String DATABASE_CREATE = "CREATE TABLE " + DATABASE_TABLE + " (" + KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " + UNIQUE_ID + " TEXT NOT NULL, " + ENTRY_TITLE + " TEXT NOT NULL, "
             + ENTRY_DESTINATION + " TEXT NOT NULL, " + ENTRY_LATLNG + " TEXT NOT NULL, " + ENTRY_RINGTONE + " TEXT NOT NULL, "+ ENTRY_ALERTRADIUS + " TEXT NOT NULL);";
 
     public DBAdapter(Context _context){
@@ -35,7 +37,7 @@ public class DBAdapter {
 
     public String getRadius(String position) {
         String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
-        Cursor c = _db.query(DATABASE_TABLE, columns, KEY_ID + " = " + position, null, null, null, null);
+        Cursor c = _db.query(DATABASE_TABLE, columns, UNIQUE_ID + " = " + position, null, null, null, null);
         int iRadius = c.getColumnIndex(ENTRY_ALERTRADIUS);
         if (c != null){
             c.moveToFirst();
@@ -46,7 +48,7 @@ public class DBAdapter {
 
     public String getLatLng(String position) {
         String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
-        Cursor c = _db.query(DATABASE_TABLE, columns, KEY_ID + " = " + position, null,null,null,null);
+        Cursor c = _db.query(DATABASE_TABLE, columns, UNIQUE_ID + " = " + position, null,null,null,null);
         int iLatLng = c.getColumnIndex(ENTRY_LATLNG);
         if (c != null){
             c.moveToFirst();
@@ -57,7 +59,7 @@ public class DBAdapter {
 
     public String getDestination(String position) {
         String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
-        Cursor c = _db.query(DATABASE_TABLE, columns, KEY_ID + " = " + position, null,null,null,null);
+        Cursor c = _db.query(DATABASE_TABLE, columns, UNIQUE_ID + " = " + position, null,null,null,null);
         int iDestination = c.getColumnIndex(ENTRY_DESTINATION);
         if (c != null){
             c.moveToFirst();
@@ -68,7 +70,7 @@ public class DBAdapter {
 
     public String getTitle(String position) {
         String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
-        Cursor c = _db.query(DATABASE_TABLE, columns, KEY_ID + " = " + position, null,null,null,null);
+        Cursor c = _db.query(DATABASE_TABLE, columns, UNIQUE_ID + " = " + position, null,null,null,null);
         int iTitle = c.getColumnIndex(ENTRY_TITLE);
         if (c != null){
             c.moveToFirst();
@@ -79,7 +81,7 @@ public class DBAdapter {
 
     public String getRingTone(String position) {
         String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
-        Cursor c = _db.query(DATABASE_TABLE, columns, KEY_ID + " = " + position, null,null,null,null);
+        Cursor c = _db.query(DATABASE_TABLE, columns, UNIQUE_ID + " = " + position, null,null,null,null);
         int iRingTone = c.getColumnIndex(ENTRY_RINGTONE);
         if (c != null){
             c.moveToFirst();
@@ -96,7 +98,13 @@ public class DBAdapter {
         updatedValues.put(ENTRY_ALERTRADIUS, newRadius);
         updatedValues.put(ENTRY_RINGTONE, newRingTone);
 
-        _db.update(DATABASE_TABLE, updatedValues, KEY_ID + "=" + rowNumber,null);
+        _db.update(DATABASE_TABLE, updatedValues, UNIQUE_ID + "=" + rowNumber,null);
+    }
+
+    public void updateUniqueId(int idNeededToBeChanged){
+        ContentValues rowId = new ContentValues();
+        rowId.put(UNIQUE_ID, idNeededToBeChanged - 1);
+        _db.update(DATABASE_TABLE, rowId, UNIQUE_ID + "=" + idNeededToBeChanged,null);
     }
 
     public class MyDBOpenHelper extends SQLiteOpenHelper {
@@ -130,9 +138,10 @@ public class DBAdapter {
         dbHelper.close();
     }
 
-    public long insertEntry(String entryTitle, String entryDestination, String entryLatLng, String entryAlertRadius, String entryRingTone) {
+    public long insertEntry(int rowNumber, String entryTitle, String entryDestination, String entryLatLng, String entryAlertRadius, String entryRingTone) {
         ContentValues newEntryValues = new ContentValues();
 
+        newEntryValues.put(UNIQUE_ID, rowNumber);
         newEntryValues.put(ENTRY_TITLE, entryTitle);
         newEntryValues.put(ENTRY_DESTINATION, entryDestination);
         newEntryValues.put(ENTRY_LATLNG, entryLatLng);
@@ -142,12 +151,16 @@ public class DBAdapter {
         return  _db.insert(DATABASE_TABLE, null, newEntryValues);
     }
 
+    public int getNumberOfRows(){
+        return (int) DatabaseUtils.queryNumEntries(_db, DATABASE_TABLE);
+    }
+
     public Cursor retrieveAllEntriesCursor() {
         Cursor c = null;
 
         try {
             String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
-            c = _db.query(true,DATABASE_TABLE, columns,null, null, null, null, null, null);
+            c = _db.query(true,DATABASE_TABLE, columns, null, null, null, null, null, null);
 
             if (c != null) {
                 c.moveToFirst();
@@ -158,31 +171,22 @@ public class DBAdapter {
         return c;
     }
 
-    public void deleteAllEntries(){
-        _db.delete(DATABASE_TABLE, null, null);
-    }
-
     public void deleteEntry(int rowNumber){
-        _db.delete(DATABASE_TABLE, KEY_ID + "=" + rowNumber, null);
+        _db.delete(DATABASE_TABLE, UNIQUE_ID + "=" + rowNumber, null);
     }
 
-    public ArrayList<AlarmsDeleteHelper> getAllEntriesIntoArrayList(){
-        ArrayList<AlarmsDeleteHelper> mArrayList = new ArrayList<AlarmsDeleteHelper>();
+    public ArrayList<String> getIdList(){
+        ArrayList<String> mArrayList = new ArrayList<String>();
 
-        String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
+        String[] columns = {KEY_ID, UNIQUE_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
         Cursor cursor = _db.query(true,DATABASE_TABLE, columns, null, null, null, null, null, null);
         if (cursor != null){
             if (cursor.moveToFirst()) {
 
                 do {
-                    AlarmsDeleteHelper helper = new AlarmsDeleteHelper();
-                    helper.setTitle(cursor.getString(cursor.getColumnIndex(ENTRY_TITLE)));
-                    helper.setDestination(cursor.getString(cursor.getColumnIndex(ENTRY_DESTINATION)));
-                    helper.setLatLng(cursor.getString(cursor.getColumnIndex(ENTRY_LATLNG)));
-                    helper.setRadius(cursor.getString(cursor.getColumnIndex(ENTRY_ALERTRADIUS)));
-                    helper.setRingTone(cursor.getString(cursor.getColumnIndex(ENTRY_RINGTONE)));
+                    String hi = cursor.getString(cursor.getColumnIndex(UNIQUE_ID));
 
-                    mArrayList.add(helper);
+                    mArrayList.add(hi);
                 } while (cursor.moveToNext());
             }
             cursor.close();

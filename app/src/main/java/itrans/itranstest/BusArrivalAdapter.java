@@ -96,7 +96,7 @@ public class BusArrivalAdapter extends RecyclerView.Adapter<BusArrivalAdapter.My
         }else{
             holder.ETA.setText("Arriving");
         }
-        //counter(holder, holder.getAdapterPosition(), diff);
+        counter(holder, holder.getAdapterPosition(), diff);
     }
 
     public void counter(final MyViewHolder holder, int position, long diff){

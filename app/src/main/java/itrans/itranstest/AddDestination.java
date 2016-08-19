@@ -23,6 +23,7 @@ import com.android.volley.RequestQueue;
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.common.GooglePlayServicesRepairableException;
 import com.google.android.gms.common.api.Status;
+import com.google.android.gms.identity.intents.Address;
 import com.google.android.gms.location.places.Place;
 import com.google.android.gms.location.places.ui.PlaceAutocomplete;
 import com.google.android.gms.location.places.ui.PlacePicker;
@@ -38,6 +39,7 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 
 import itrans.itranstest.Internet.VolleySingleton;
 
@@ -108,6 +110,7 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
 
         Bundle extras = getIntent().getExtras();
         if (extras != null) {
+            btnDone.setText("Update");
             setTitle("Edit destination");
             isUpdate = true;
             updateDestinationRowNumber = extras.getInt("updateRowNumber");
@@ -238,9 +241,17 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
                         try {
                             DBAdapter inputDestination = new DBAdapter(AddDestination.this);
                             inputDestination.open();
-                            inputDestination.insertEntry(addTitle, addDestination, finalLatLong, entryRadius, selectedRingTone);
+                            int numRows = inputDestination.getNumberOfRows();
+                            inputDestination.insertEntry(numRows + 1, addTitle, addDestination, finalLatLong, entryRadius, selectedRingTone);
                             inputDestination.close();
                             Toast.makeText(getApplicationContext(), "Entry added!", Toast.LENGTH_SHORT).show();
+
+                            DBAdapter db = new DBAdapter(AddDestination.this);
+                            db.open();
+                            ArrayList<String> arrayList;
+                            arrayList = db.getIdList();
+                            Toast.makeText(AddDestination.this, String.valueOf(arrayList), Toast.LENGTH_SHORT).show();
+                            db.close();
                         } catch (Exception e) {
                             e.printStackTrace();
                         }

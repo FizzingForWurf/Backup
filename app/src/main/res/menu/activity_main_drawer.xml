@@ -2,10 +2,6 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/nav_camera"
-        android:icon="@drawable/ic_bookmark_24dp"
-        android:title="Bookmarks" />
-    <item
         android:icon="@drawable/ic_directions_bus_black_24dp"
         android:id="@+id/nav_nearbyBus"
         android:title="Nearby bus stops" />

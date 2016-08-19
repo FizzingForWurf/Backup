@@ -32,13 +32,12 @@
             app:floatingSearch_searchHint="Search..."
             app:floatingSearch_suggestionsListAnimDuration="250"
             app:floatingSearch_showSearchKey="false"
-            app:floatingSearch_menu="@menu/bus_number_menu"
             app:floatingSearch_leftActionMode="showHome"
             app:floatingSearch_dismissOnOutsideTouch="true"
             app:floatingSearch_close_search_on_keyboard_dismiss="true">
 
         </com.arlib.floatingsearchview.FloatingSearchView>
-        <!--app:floatingSearch_menu="@menu/nearby_busstops_menu"-->
+        <!--app:floatingSearch_menu="@menu/bus_number_menu"-->
     </RelativeLayout>
 
 </android.support.design.widget.CoordinatorLayout>

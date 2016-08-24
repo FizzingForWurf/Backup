@@ -8,7 +8,7 @@
     <item
         android:icon="@drawable/ic_search_black_24dp"
         android:id="@+id/nav_busStopsSearch"
-        android:title="Search bus stops" />
+        android:title="Search bus number" />
 
     <item android:title="System">
         <menu>

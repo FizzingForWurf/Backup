@@ -137,7 +137,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         AddDestinationFab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (lvDestinations.getCount() >= 10) {
+                if (lvDestinations.getCount() >= 4) {
                     Toast.makeText(MainActivity.this, "Maximum number of alarms reached", LENGTH_SHORT).show();
                 } else {
                     Intent intent = new Intent(MainActivity.this, AddDestination.class);
@@ -815,6 +815,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                     Log.e("DELETE ARRAY", String.valueOf(arrayList));
 
                     db.close();
+                    Toast.makeText(MainActivity.this, "Entry deleted.", Toast.LENGTH_SHORT).show();
                 }else {
                     Toast.makeText(MainActivity.this, "Please turn off active alarm to delete entry.", Toast.LENGTH_SHORT).show();
                 }

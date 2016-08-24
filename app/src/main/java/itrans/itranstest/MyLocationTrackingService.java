@@ -147,30 +147,6 @@ public class MyLocationTrackingService extends Service {
         }
     };
 
-//    @Override
-//    public void onLocationChanged(Location location) {
-//        mLastLocation = location;
-//        LastLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
-//
-//        if (destinationLatLng != null && alertRadius != null) {
-//
-//            checkDistanceFromDestination();
-//
-//            result = round(distance/1000 , 2);
-//            updateNotification(result);
-//
-//            float radius = Float.parseFloat(alertRadius);
-//            hasArrived = (distance <= radius);
-//        }
-//
-//        //check if arriving
-//        if (hasArrived){
-//            hasArrived = false;
-//            updateArrivedNotification();
-//            startAlarm();
-//        }
-//    }
-
     private void startAlarm() {
         AlarmReceiver alarm = new AlarmReceiver();
         alarm.StartAlarm(this, alertTitle);

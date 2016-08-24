@@ -3,6 +3,7 @@ package itrans.itranstest;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.location.Criteria;
@@ -11,6 +12,7 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -59,7 +61,7 @@ import java.util.Map;
 import itrans.itranstest.Internet.MyApplication;
 import itrans.itranstest.Internet.VolleySingleton;
 
-public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
+public class BusSearch extends AppCompatActivity implements OnMapReadyCallback {
 
     private GoogleMap map;
     private Marker selectedMarker;
@@ -124,7 +126,7 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
         mSearchView.setOnQueryChangeListener(new FloatingSearchView.OnQueryChangeListener() {
             @Override
             public void onSearchTextChanged(String oldQuery, String newQuery) {
-                if (!BusSearchSuggestionList.isEmpty()){
+                if (!BusSearchSuggestionList.isEmpty()) {
                     BusSearchSuggestionList.clear();
                 }
                 if (!oldQuery.equals("") && newQuery.equals("")) {
@@ -133,10 +135,10 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
                     mSearchView.showProgress();
                     List<String> filteredList = Lists.newArrayList(Collections2.filter(BusServiceNumberList,
                             Predicates.containsPattern(newQuery)));
-                    for(int i = 0 ; i < filteredList.size(); i++){
+                    for (int i = 0; i < filteredList.size(); i++) {
                         if (filteredList.get(i).startsWith(newQuery)) {
                             BusSearchSuggestionList.add(new BusRoutes(filteredList.get(i)));
-                            if (BusSearchSuggestionList.size() == 12){
+                            if (BusSearchSuggestionList.size() == 12) {
                                 break;
                             }
                         }
@@ -167,21 +169,21 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
                     progressDialog.setCancelable(false);
                 }
                 progressDialog.show();
-                for(int i = 0; i < BusServiceNumberList.size();i++) {
-                    if(BusServiceNumberList.get(i).equals(searchSuggestion.getBody())) {
+                for (int i = 0; i < BusServiceNumberList.size(); i++) {
+                    if (BusServiceNumberList.get(i).equals(searchSuggestion.getBody())) {
                         selectedServiceNumber = BusServiceNumberList.get(i);
-                        count = (int) Math.round(i*1.1)*50;
+                        count = (int) Math.round(i * 1.1) * 50;
                         break;
                     }
                 }
-                if (!busCoordinates.isEmpty()){
+                if (!busCoordinates.isEmpty()) {
                     busCoordinates.clear();
                 }
-                if (!allBusStops.isEmpty()){
+                if (!allBusStops.isEmpty()) {
                     allBusStops.clear();
                 }
                 lastCode = 0;
-                listCount = 0 ;
+                listCount = 0;
                 dontCall = false;
                 end = false;
                 query = null;
@@ -199,10 +201,10 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
         });
     }
 
-    private void busStops(){
+    private void busStops() {
         dontCall = false;
         count += 50;
-        JsonObjectRequest BusRoutesRequest = new JsonObjectRequest(Request.Method.GET, "http://datamall2.mytransport.sg/ltaodataservice/BusRoutes?$skip="+String.valueOf(count), null,
+        JsonObjectRequest BusRoutesRequest = new JsonObjectRequest(Request.Method.GET, "http://datamall2.mytransport.sg/ltaodataservice/BusRoutes?$skip=" + String.valueOf(count), null,
                 new Response.Listener<JSONObject>() {
                     @Override
                     public void onResponse(JSONObject response) {
@@ -211,26 +213,26 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
                             for (int i = 0; i < jsonArray.length(); i++) {
                                 JSONObject services = jsonArray.getJSONObject(i);
                                 String busNo = services.getString("ServiceNo");
-                                if(busNo.equals(selectedServiceNumber)){
+                                if (busNo.equals(selectedServiceNumber)) {
                                     String busStopCode = services.getString("BusStopCode");
-                                    if(!busStopCode.matches("(A|B|C|P|N|E|T|S).*")){
+                                    if (!busStopCode.matches("(A|B|C|P|N|E|T|S).*")) {
                                         Integer busStop = Integer.parseInt(busStopCode);
                                         allBusStops.add(busStop);
                                     }
                                     end = true;
-                                }else if(end){
+                                } else if (end) {
                                     dontCall = true;
                                 }
                             }
-                            if(!dontCall){
+                            if (!dontCall) {
                                 busStops();
-                            }else{
+                            } else {
                                 Collections.sort(allBusStops);
                                 count = -50;
-                                for(int i = allBusStops.size() - 1; i >= 0; i--){
-                                    if(i == allBusStops.size() - 1 || allBusStops.get(i) != lastCode) {
+                                for (int i = allBusStops.size() - 1; i >= 0; i--) {
+                                    if (i == allBusStops.size() - 1 || allBusStops.get(i) != lastCode) {
                                         lastCode = allBusStops.get(i);
-                                    }else{
+                                    } else {
                                         allBusStops.remove(i);
                                     }
                                 }
@@ -267,10 +269,10 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
         requestQueue.add(BusRoutesRequest);
     }
 
-    private void setMarkers(){
+    private void setMarkers() {
         dontCall = false;
         count += 50;
-        JsonObjectRequest BusStopRequest = new JsonObjectRequest(Request.Method.GET, "http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip="+String.valueOf(count), null,
+        JsonObjectRequest BusStopRequest = new JsonObjectRequest(Request.Method.GET, "http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip=" + String.valueOf(count), null,
                 new Response.Listener<JSONObject>() {
                     @Override
                     public void onResponse(JSONObject response) {
@@ -279,15 +281,15 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
                             for (int i = 0; i < jsonArray.length(); i++) {
                                 JSONObject services = jsonArray.getJSONObject(i);
                                 String busCode = services.getString("BusStopCode");
-                                if(listCount >= allBusStops.size()){
+                                if (listCount >= allBusStops.size()) {
                                     dontCall = true;
-                                }else{
-                                    if(String.valueOf(allBusStops.get(listCount)).length() < 5){
+                                } else {
+                                    if (String.valueOf(allBusStops.get(listCount)).length() < 5) {
                                         query = "0" + String.valueOf(allBusStops.get(listCount));
-                                    }else{
+                                    } else {
                                         query = String.valueOf(allBusStops.get(listCount));
                                     }
-                                    if(query.equals(busCode)){
+                                    if (query.equals(busCode)) {
                                         singleCoordinates = new ArrayList<>();
                                         Double Latitude = services.getDouble("Latitude");
                                         Double Longitude = services.getDouble("Longitude");
@@ -298,9 +300,9 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
                                     }
                                 }
                             }
-                            if(!dontCall){
+                            if (!dontCall) {
                                 setMarkers();
-                            }else{
+                            } else {
                                 placeMarkers();
                             }
                         } catch (JSONException e) {
@@ -333,15 +335,15 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
         requestQueue.add(BusStopRequest);
     }
 
-    public void placeMarkers(){
+    public void placeMarkers() {
         count = 0;
         LatLngBounds.Builder builder = new LatLngBounds.Builder();
-        for(List<Double> coordinates : busCoordinates) {
-            LatLng location = new LatLng(coordinates.get(0),coordinates.get(1));
+        for (List<Double> coordinates : busCoordinates) {
+            LatLng location = new LatLng(coordinates.get(0), coordinates.get(1));
 
             int height = 50;
             int width = 50;
-            BitmapDrawable bitmapdraw = (BitmapDrawable)getResources().getDrawable(R.drawable.nearby_marker);
+            BitmapDrawable bitmapdraw = (BitmapDrawable) getResources().getDrawable(R.drawable.nearby_marker);
             Bitmap b = bitmapdraw.getBitmap();
             Bitmap smallMarker = Bitmap.createScaledBitmap(b, width, height, false);
 
@@ -361,10 +363,10 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
         map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100));
     }
 
-    public String getbusStopId(int nameCode){
-        if(String.valueOf(nameCode).length() < 5){
+    public String getbusStopId(int nameCode) {
+        if (String.valueOf(nameCode).length() < 5) {
             query = "0" + String.valueOf(nameCode);
-        }else{
+        } else {
             query = String.valueOf(nameCode);
         }
         return query;
@@ -374,12 +376,23 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
     @Override
     public void onMapReady(GoogleMap googleMap) {
         map = googleMap;
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) !=
+                PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        map.setMyLocationEnabled(true);
 
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                float zoom = map.getCameraPosition().zoom;
                 LatLng currLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
-                map.animateCamera(CameraUpdateFactory.newLatLng(currLatLng));
+                if (zoom >= 10) {
+                    map.animateCamera(CameraUpdateFactory.newLatLng(currLatLng));
+                } else{
+                    map.animateCamera(CameraUpdateFactory.newLatLngZoom(currLatLng, 16));
+                }
             }
         });
 

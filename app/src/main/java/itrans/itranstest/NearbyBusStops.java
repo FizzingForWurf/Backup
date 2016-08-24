@@ -87,6 +87,7 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
     private List<NearbySuggestions> mSuggestionsList = new ArrayList<>();
     private List<NearbySuggestions> mResultsList = new ArrayList<>();
     private List<NearbySuggestions> mBusStopList = new ArrayList<>();
+    private FloatingActionButton fab;
 
     private List<Double> singleCoordinates = new ArrayList<>();
     private List<List<Double>> busCoordinates = new ArrayList<>();
@@ -140,14 +141,7 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
             previousLatLng = new LatLng(lat, lon);
         }
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                LatLng currLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
-                map.animateCamera(CameraUpdateFactory.newLatLng(currLatLng));
-            }
-        });
+        fab = (FloatingActionButton) findViewById(R.id.fab);
 
         mSearchView.setOnHomeActionClickListener(new FloatingSearchView.OnHomeActionClickListener() {
             @Override
@@ -632,6 +626,20 @@ public class NearbyBusStops extends AppCompatActivity implements OnMapReadyCallb
         map.setMyLocationEnabled(true);
         map.getUiSettings().setMyLocationButtonEnabled(false);
         map.getUiSettings().setMapToolbarEnabled(false);
+
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                float zoom = map.getCameraPosition().zoom;
+                LatLng currLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+                if (zoom >= 10) {
+                    map.animateCamera(CameraUpdateFactory.newLatLng(currLatLng));
+                } else{
+                    map.animateCamera(CameraUpdateFactory.newLatLngZoom(currLatLng, 16));
+                }
+            }
+        });
+
         if (previousLatLng != null) {
             map.animateCamera(CameraUpdateFactory.newLatLngZoom(previousLatLng, 16));
         }

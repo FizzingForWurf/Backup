@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Vibrator;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.widget.SeekBar;
 
 import java.util.Timer;
@@ -32,6 +33,9 @@ public class AlarmRing extends Activity {
         boolean playMusic = myPrefs.getBoolean("musicCheckBox", true);
         String selectedRingTone = myPrefs.getString("selectedRingTone", RingtoneManager.getActualDefaultRingtoneUri(getApplicationContext(), RingtoneManager.TYPE_ALARM).toString());
 
+        Log.e("RINGTONE Test", String.valueOf(playMusic));
+        Log.e("RINGTONE", selectedRingTone);
+
         Uri uri = Uri.parse(selectedRingTone); //RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
 
         if (vibrationBoolean) {
@@ -43,6 +47,7 @@ public class AlarmRing extends Activity {
         if (uri != null) {
             if (playMusic) {
                 ringtone = RingtoneManager.getRingtone(getApplicationContext(), uri);
+                Log.e("RINGTONE", ringtone.getTitle(this));
                 ringtone.play();
             }
         }

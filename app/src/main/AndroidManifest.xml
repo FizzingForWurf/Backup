@@ -9,9 +9,10 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
     <uses-permission android:name="android.permission.GET_TASKS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <uses-feature
         android:glEsVersion="0x00020000"
@@ -19,6 +20,7 @@
 
     <application
         android:name=".Internet.MyApplication"
+
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -61,13 +63,13 @@
         <activity
             android:name=".NearbyBusStops"
             android:label="@string/title_activity_nearby_bus_stops"
-            android:theme="@style/AppTheme.NoActionBar.Transparent"
-            android:screenOrientation="portrait"/>
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme.NoActionBar.Transparent" />
         <activity
             android:name=".BusSearch"
             android:label="@string/title_activity_bus_search"
-            android:theme="@style/AppTheme.NoActionBar"
-            android:screenOrientation="portrait"/>
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme.NoActionBar" />
 
         <service
             android:name=".MyLocationTrackingService"
@@ -84,7 +86,15 @@
             android:name=".BusArrivalTiming"
             android:label="@string/title_activity_bus_arrival_timing"
             android:theme="@style/AppTheme.NoActionBar" />
-        <activity android:name=".Feedback" />
+        <activity
+            android:name=".Feedback"
+            android:theme="@style/FeedbackTheme" />
+        <activity
+            android:name=".SettingsActivity" />
+        <activity
+            android:name=".AlarmRing"
+            android:showOnLockScreen="true"
+            android:screenOrientation="portrait"/>
 
     </application>
 

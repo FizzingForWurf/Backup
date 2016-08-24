@@ -1,15 +1,16 @@
 package itrans.itranstest.Internet;
 
-import android.app.Application;
 import android.content.Context;
 import android.database.Cursor;
+import android.support.multidex.MultiDex;
+import android.support.multidex.MultiDexApplication;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import itrans.itranstest.BusServiceDBAdapter;
 
-public class MyApplication extends Application {
+public class MyApplication extends MultiDexApplication {
 
     private static MyApplication sInstance;
 
@@ -20,6 +21,11 @@ public class MyApplication extends Application {
     public void onCreate() {
         super.onCreate();
         sInstance = this;
+    }
+
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(base);
+        MultiDex.install(this);
     }
 
     public static MyApplication getInstance(){
@@ -57,6 +63,15 @@ public class MyApplication extends Application {
         db.close();
 
         return updateStatus;
+    }
+
+    public void deleteAll(Context c){
+        BusServiceDBAdapter db = new BusServiceDBAdapter(c);
+        db.open();
+
+        db.removeAllEntries();
+
+        db.close();
     }
 
     public List<String> retrieveAll(Context c){

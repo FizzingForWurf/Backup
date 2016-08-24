@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        android:title="Alarm">
+
+        <CheckBoxPreference
+            android:title="Vibration"
+            android:defaultValue="true"
+            android:key="vibrationCheckBox"
+            android:summary="Vibrate when arriving at destination" />
+
+        <CheckBoxPreference
+            android:title="Music"
+            android:summary="Play ringtone when arriving at destination"
+            android:defaultValue="true"
+            android:key="musicCheckBox"/>
+
+        <Preference
+            android:title="Ringtone"
+            android:summary="Default"
+            android:key="ringtoneSelectPrefs"/>
+
+    </PreferenceCategory>
+</PreferenceScreen>

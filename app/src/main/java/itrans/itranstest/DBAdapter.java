@@ -25,18 +25,18 @@ public class DBAdapter {
     public static final String ENTRY_TITLE = "entry_title";
     public static final String ENTRY_DESTINATION = "entry_destination";
     public static final String ENTRY_LATLNG = "entry_latlng";
-    public static final String ENTRY_RINGTONE = "entry_ringtone";
     public static final String ENTRY_ALERTRADIUS = "entry_alertradius";
 
-    protected static final String DATABASE_CREATE = "CREATE TABLE " + DATABASE_TABLE + " (" + KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " + UNIQUE_ID + " TEXT NOT NULL, " + ENTRY_TITLE + " TEXT NOT NULL, "
-            + ENTRY_DESTINATION + " TEXT NOT NULL, " + ENTRY_LATLNG + " TEXT NOT NULL, " + ENTRY_RINGTONE + " TEXT NOT NULL, "+ ENTRY_ALERTRADIUS + " TEXT NOT NULL);";
+    protected static final String DATABASE_CREATE = "CREATE TABLE " + DATABASE_TABLE + " (" + KEY_ID +
+            " INTEGER PRIMARY KEY AUTOINCREMENT, " + UNIQUE_ID + " TEXT NOT NULL, " + ENTRY_TITLE + " TEXT NOT NULL, "
+            + ENTRY_DESTINATION + " TEXT NOT NULL, " + ENTRY_LATLNG + " TEXT NOT NULL, " + ENTRY_ALERTRADIUS + " TEXT NOT NULL);";
 
     public DBAdapter(Context _context){
         this.context = _context;
     }
 
     public String getRadius(String position) {
-        String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
+        String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS};
         Cursor c = _db.query(DATABASE_TABLE, columns, UNIQUE_ID + " = " + position, null, null, null, null);
         int iRadius = c.getColumnIndex(ENTRY_ALERTRADIUS);
         if (c != null){
@@ -47,7 +47,7 @@ public class DBAdapter {
     }
 
     public String getLatLng(String position) {
-        String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
+        String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS};
         Cursor c = _db.query(DATABASE_TABLE, columns, UNIQUE_ID + " = " + position, null,null,null,null);
         int iLatLng = c.getColumnIndex(ENTRY_LATLNG);
         if (c != null){
@@ -58,7 +58,7 @@ public class DBAdapter {
     }
 
     public String getDestination(String position) {
-        String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
+        String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS};
         Cursor c = _db.query(DATABASE_TABLE, columns, UNIQUE_ID + " = " + position, null,null,null,null);
         int iDestination = c.getColumnIndex(ENTRY_DESTINATION);
         if (c != null){
@@ -69,7 +69,7 @@ public class DBAdapter {
     }
 
     public String getTitle(String position) {
-        String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
+        String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS};
         Cursor c = _db.query(DATABASE_TABLE, columns, UNIQUE_ID + " = " + position, null,null,null,null);
         int iTitle = c.getColumnIndex(ENTRY_TITLE);
         if (c != null){
@@ -79,24 +79,12 @@ public class DBAdapter {
         return null;
     }
 
-    public String getRingTone(String position) {
-        String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
-        Cursor c = _db.query(DATABASE_TABLE, columns, UNIQUE_ID + " = " + position, null,null,null,null);
-        int iRingTone = c.getColumnIndex(ENTRY_RINGTONE);
-        if (c != null){
-            c.moveToFirst();
-            return c.getString(iRingTone);
-        }
-        return null;
-    }
-
-    public void updateEntry(int rowNumber, String newTitle, String newDestination, String newLatLng, String newRadius, String newRingTone){
+    public void updateEntry(int rowNumber, String newTitle, String newDestination, String newLatLng, String newRadius){
         ContentValues updatedValues = new ContentValues();
         updatedValues.put(ENTRY_TITLE, newTitle);
         updatedValues.put(ENTRY_DESTINATION, newDestination);
         updatedValues.put(ENTRY_LATLNG, newLatLng);
         updatedValues.put(ENTRY_ALERTRADIUS, newRadius);
-        updatedValues.put(ENTRY_RINGTONE, newRingTone);
 
         _db.update(DATABASE_TABLE, updatedValues, UNIQUE_ID + "=" + rowNumber,null);
     }
@@ -138,7 +126,7 @@ public class DBAdapter {
         dbHelper.close();
     }
 
-    public long insertEntry(int rowNumber, String entryTitle, String entryDestination, String entryLatLng, String entryAlertRadius, String entryRingTone) {
+    public long insertEntry(int rowNumber, String entryTitle, String entryDestination, String entryLatLng, String entryAlertRadius) {
         ContentValues newEntryValues = new ContentValues();
 
         newEntryValues.put(UNIQUE_ID, rowNumber);
@@ -146,7 +134,6 @@ public class DBAdapter {
         newEntryValues.put(ENTRY_DESTINATION, entryDestination);
         newEntryValues.put(ENTRY_LATLNG, entryLatLng);
         newEntryValues.put(ENTRY_ALERTRADIUS, entryAlertRadius);
-        newEntryValues.put(ENTRY_RINGTONE, entryRingTone);
 
         return  _db.insert(DATABASE_TABLE, null, newEntryValues);
     }
@@ -159,7 +146,7 @@ public class DBAdapter {
         Cursor c = null;
 
         try {
-            String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
+            String[] columns = {KEY_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS};
             c = _db.query(true,DATABASE_TABLE, columns, null, null, null, null, null, null);
 
             if (c != null) {
@@ -178,7 +165,7 @@ public class DBAdapter {
     public ArrayList<String> getIdList(){
         ArrayList<String> mArrayList = new ArrayList<String>();
 
-        String[] columns = {KEY_ID, UNIQUE_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS, ENTRY_RINGTONE};
+        String[] columns = {KEY_ID, UNIQUE_ID, ENTRY_TITLE, ENTRY_DESTINATION, ENTRY_LATLNG, ENTRY_ALERTRADIUS};
         Cursor cursor = _db.query(true,DATABASE_TABLE, columns, null, null, null, null, null, null);
         if (cursor != null){
             if (cursor.moveToFirst()) {

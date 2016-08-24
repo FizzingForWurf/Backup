@@ -134,89 +134,59 @@
                 android:layout_height="1dp"
                 android:background="#bdbdbd"/>
 
-            <RelativeLayout
-                android:layout_margin="4dp"
-                android:padding="7dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <TextView
-                    android:id="@+id/locationSb"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Alert Radius"
-                    android:textSize="18sp"
-                    android:textColor="#000000"/>
-
-                <LinearLayout
-                    android:layout_margin="5dp"
-                    android:layout_below="@+id/locationSb"
-                    android:orientation="horizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:weightSum="100">
-
-                    <SeekBar
-                        android:id="@+id/radiusSeekbar"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="95"
-                        android:progress="21"
-                        android:max="39"/>
-
-                    <TextView
-                        android:id="@+id/tvRadiusIndicator"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="5"
-                        android:layout_gravity="center_vertical"
-                        android:textSize="15sp"
-                        android:textAlignment="center"
-                        android:text="1.10 km"
-                        android:textColor="#4CAF50"/>
-
-                </LinearLayout>
-
-            </RelativeLayout>
-
-            <View
-                android:id="@+id/fifthView"
-                android:layout_width="fill_parent"
-                android:layout_height="1dp"
-                android:background="#bdbdbd"/>
-
             <android.support.v7.widget.CardView
                 android:id="@+id/cvRingTone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardElevation="@dimen/cardview_default_elevation"
-                app:contentPadding="15dp"
                 android:foreground="?android:attr/selectableItemBackground"
-                android:clickable="true"
+                android:clickable="false"
                 app:cardBackgroundColor="#fafafa">
 
-                <LinearLayout
+                <RelativeLayout
+                    android:layout_margin="4dp"
+                    android:padding="7dp"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:layout_height="wrap_content">
 
                     <TextView
+                        android:id="@+id/locationSb"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Ring Tone"
+                        android:text="Alert Radius"
                         android:textSize="18sp"
                         android:textColor="#000000"/>
 
-                    <TextView
-                        android:id="@+id/tvCurrentRingTone"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_margin="5dp"
+                        android:layout_below="@+id/locationSb"
+                        android:orientation="horizontal"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Default"
-                        android:textSize="15sp"
-                        android:layout_marginTop="5dp"
-                        android:textColor="#4d4d4d"/>
+                        android:weightSum="100">
 
-                </LinearLayout>
+                        <SeekBar
+                            android:id="@+id/radiusSeekbar"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="95"
+                            android:progress="21"
+                            android:max="39"/>
+
+                        <TextView
+                            android:id="@+id/tvRadiusIndicator"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="5"
+                            android:layout_gravity="center_vertical"
+                            android:textSize="15sp"
+                            android:textAlignment="center"
+                            android:text="1.10 km"
+                            android:textColor="#4CAF50"/>
+
+                    </LinearLayout>
+
+                </RelativeLayout>
 
             </android.support.v7.widget.CardView>
 

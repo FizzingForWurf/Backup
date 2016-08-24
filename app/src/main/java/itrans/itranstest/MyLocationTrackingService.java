@@ -30,7 +30,6 @@ public class MyLocationTrackingService extends Service {
     //selected data
     private String destinationLatLng;
     private String alertRadius;
-    private String alertRingTone;
     private String alertTitle;
     private LatLng selectedLocation;
     private float distance;
@@ -58,7 +57,6 @@ public class MyLocationTrackingService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         alertRadius = intent.getStringExtra("AlertRadius");
         destinationLatLng = intent.getStringExtra("AlertDestination");
-        alertRingTone = intent.getStringExtra("AlertRingTone");
         alertTitle = intent.getStringExtra("AlertTitle");
 
         String[] latANDlong = destinationLatLng.split(",");
@@ -175,7 +173,7 @@ public class MyLocationTrackingService extends Service {
 
     private void startAlarm() {
         AlarmReceiver alarm = new AlarmReceiver();
-        alarm.StartAlarm(this, alertRingTone);
+        alarm.StartAlarm(this, alertTitle);
     }
 
     private void checkDistanceFromDestination() {
@@ -206,7 +204,7 @@ public class MyLocationTrackingService extends Service {
                 .setSmallIcon(R.drawable.ic_directions_bus_white_24dp)
                 .setOngoing(true);
 
-        Intent resultIntent = new Intent(this, MainActivity.class);
+        Intent resultIntent = new Intent(this, Splash.class);
 
         PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0, resultIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT);

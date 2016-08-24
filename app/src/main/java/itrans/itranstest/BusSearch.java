@@ -1,14 +1,18 @@
 package itrans.itranstest;
 
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
+import android.location.Criteria;
+import android.location.Location;
+import android.location.LocationManager;
 import android.os.Bundle;
+import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.text.Html;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
@@ -24,7 +28,6 @@ import com.android.volley.toolbox.JsonObjectRequest;
 import com.arlib.floatingsearchview.FloatingSearchView;
 import com.arlib.floatingsearchview.suggestions.SearchSuggestionsAdapter;
 import com.arlib.floatingsearchview.suggestions.model.SearchSuggestion;
-import com.google.android.gms.common.api.BooleanResult;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -60,8 +63,12 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
 
     private GoogleMap map;
     private Marker selectedMarker;
+    private LocationManager locationManager;
+    private Location mLastLocation;
+    private LatLng mLastLatLng;
 
     private FloatingSearchView mSearchView;
+    private FloatingActionButton fab;
 
     private List<Double> singleCoordinates = new ArrayList<>();
     private List<List<Double>> busCoordinates = new ArrayList<>();
@@ -104,6 +111,8 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
 
         MyApplication ma = MyApplication.getInstance();
         BusServiceNumberList = ma.retrieveAll(getApplicationContext());
+
+        fab = (FloatingActionButton) findViewById(R.id.bus_search_fab);
 
         mSearchView.setOnHomeActionClickListener(new FloatingSearchView.OnHomeActionClickListener() {
             @Override
@@ -365,6 +374,15 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
     @Override
     public void onMapReady(GoogleMap googleMap) {
         map = googleMap;
+
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                LatLng currLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+                map.animateCamera(CameraUpdateFactory.newLatLng(currLatLng));
+            }
+        });
+
         map.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
             @Override
             public boolean onMarkerClick(Marker marker) {
@@ -529,4 +547,54 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback{
         Log.i("NEARBY URL", urlString.toString());
         return urlString.toString();
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
+        Criteria c = new Criteria();
+        c.setAccuracy(Criteria.ACCURACY_FINE);
+        c.setAltitudeRequired(false);
+        c.setBearingRequired(false);
+        c.setCostAllowed(true);
+        c.setPowerRequirement(Criteria.POWER_LOW);
+
+        try {
+            String provider = locationManager.getBestProvider(c, true);
+            mLastLocation = locationManager.getLastKnownLocation(provider);
+            if (mLastLocation != null) {
+                mLastLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+            }
+
+            locationManager.requestLocationUpdates(provider, 2000, 10, locationListener);
+        } catch (SecurityException e) {
+            Toast.makeText(getApplicationContext(), "Cannot detect...", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private final android.location.LocationListener locationListener = new android.location.LocationListener() {
+
+        @Override
+        public void onLocationChanged(Location location) {
+            mLastLocation = location;
+            mLastLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+        }
+
+        @Override
+        public void onStatusChanged(String s, int i, Bundle bundle) {
+
+        }
+
+        @Override
+        public void onProviderEnabled(String s) {
+
+        }
+
+        @Override
+        public void onProviderDisabled(String s) {
+
+        }
+    };
 }

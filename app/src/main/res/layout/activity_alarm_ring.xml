@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="itrans.itranstest.AlarmRing">
+
+    <ImageView
+        android:id="@+id/ivAlarm"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/alarm_clock"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="100dp"
+        android:contentDescription="alarm" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Wake up now! \nYou are arriving at your destination!"
+        android:textAlignment="center"
+        android:layout_below="@+id/ivAlarm"
+        android:layout_centerHorizontal="true"
+        android:textSize="18sp"
+        android:layout_margin="15dp" />
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/ivAlarm"
+        android:layout_alignParentBottom="true">
+
+        <SeekBar
+            android:id="@+id/alarm_cancel_seekbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_above="@+id/tvdesc"
+            android:layout_centerHorizontal="true"
+            android:thumb="@drawable/alarm_cancel"
+            android:progress="50"
+            android:progressDrawable="@android:color/transparent"/>
+
+        <TextView
+            android:id="@+id/tvdesc"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Swipe left or right to dismiss"
+            android:layout_above="@+id/tvack"
+            android:layout_centerHorizontal="true"
+            android:layout_margin="15dp"/>
+
+        <TextView
+            android:id="@+id/tvack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="(Icon made by Freepik from www.flaticon.com)"
+            android:layout_alignParentBottom="true"
+            android:layout_centerHorizontal="true"
+            android:textSize="10sp"/>
+
+    </RelativeLayout>
+
+</RelativeLayout>

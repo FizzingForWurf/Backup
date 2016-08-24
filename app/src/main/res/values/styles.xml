@@ -8,6 +8,13 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
+    <style name="FeedbackTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="colorPrimary">#F5F5F5</item>
+        <item name="colorPrimaryDark">#BDBDBD</item>
+        <item name="colorAccent">#9E9E9E</item>
+        <item name="android:homeAsUpIndicator">@drawable/ic_arrow_back_black_24dp</item>
+    </style>
+
     <style name="AppTheme.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>

@@ -1,29 +1,23 @@
 package itrans.itranstest;
 
 import android.app.AlarmManager;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.media.Ringtone;
-import android.media.RingtoneManager;
-import android.net.Uri;
 import android.os.PowerManager;
-import android.os.Vibrator;
-import android.provider.AlarmClock;
+import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.WakefulBroadcastReceiver;
-import android.widget.Toast;
+import android.view.WindowManager;
 
 import java.util.Calendar;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class AlarmReceiver extends WakefulBroadcastReceiver {
 
     //alarm stuff
     private AlarmManager alarmMgr;
     private PendingIntent alarmIntent;
-    private String RingTone;
-    private Ringtone ringtone;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -32,32 +26,22 @@ public class AlarmReceiver extends WakefulBroadcastReceiver {
                 PowerManager.ACQUIRE_CAUSES_WAKEUP, "");
         wl.acquire();
 
-        Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE); //Uri.parse(RingTone);
-        long[] pattern = {0, 750, 500, 750, 500, 750, 500, 750, 500, 750, 500};
-        Vibrator v = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
-        v.vibrate(pattern, -1);
-        if (uri != null) {
-            ringtone = RingtoneManager.getRingtone(context, uri);
-            ringtone.play();
-        }
-        TimerTask task = new TimerTask() {
-            @Override
-            public void run() {
-                ringtone.stop();
-            }
-        };
-        Timer timer = new Timer();
-        timer.schedule(task, 3000);
+        Intent Intent = new Intent("android.intent.action.MAIN");
+        Intent.setClass(context, AlarmRing.class);
+        Intent.setFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+        Intent.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED +
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD +
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON +
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+        context.startActivity(Intent);
 
-        Toast.makeText(context, "Alarm !!!!!!!!!!", Toast.LENGTH_LONG).show();
         context.stopService(new Intent(context, MyLocationTrackingService.class));
 
         wl.release();
     }
 
-    public void StartAlarm(Context context, String ringTone) {
-        this.RingTone = ringTone;
-        Toast.makeText(context, RingTone, Toast.LENGTH_SHORT).show();
+    public void StartAlarm(Context context, String alarmTitle) {
+        startNotification(alarmTitle, context);
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(System.currentTimeMillis());
         calendar.set(Calendar.SECOND, calendar.get(Calendar.SECOND));
@@ -66,13 +50,17 @@ public class AlarmReceiver extends WakefulBroadcastReceiver {
         Intent intent = new Intent(context, AlarmReceiver.class);
         alarmIntent = PendingIntent.getBroadcast(context, 0, intent, 0);
 
-        alarmMgr.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis() + 1000, alarmIntent);
+        alarmMgr.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), alarmIntent);
     }
 
-    public void CancelAlarm(Context context) {
-        Intent intent = new Intent(context, AlarmReceiver.class);
-        alarmIntent = PendingIntent.getBroadcast(context, 0, intent, 0);
-        alarmMgr.cancel(alarmIntent);
+    private void startNotification(String title, Context context){
+        NotificationCompat.Builder noticeBuilder = new NotificationCompat.Builder(context)
+                .setContentTitle(title + " alarm")
+                .setContentText("You have arrived at your destination.")
+                .setSmallIcon(R.drawable.ic_access_alarms_black_24dp);
+
+        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.notify(100, noticeBuilder.build());
     }
 }
 

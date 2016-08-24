@@ -2,16 +2,17 @@ package itrans.itranstest;
 
 import android.content.Intent;
 import android.graphics.Color;
-import android.media.Ringtone;
-import android.media.RingtoneManager;
-import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
+import android.transition.Explode;
+import android.transition.Fade;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -23,7 +24,6 @@ import com.android.volley.RequestQueue;
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.common.GooglePlayServicesRepairableException;
 import com.google.android.gms.common.api.Status;
-import com.google.android.gms.identity.intents.Address;
 import com.google.android.gms.location.places.Place;
 import com.google.android.gms.location.places.ui.PlaceAutocomplete;
 import com.google.android.gms.location.places.ui.PlacePicker;
@@ -39,7 +39,6 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.text.DecimalFormat;
-import java.util.ArrayList;
 
 import itrans.itranstest.Internet.VolleySingleton;
 
@@ -53,22 +52,19 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
 
     private String finalLatLong;
     private EditText etTitle;
-    private CardView cvDestination, cvRingTone;
+    private CardView cvDestination;
     private ImageView ivPickMap;
     private Button btnDone, btnCancel;
-    private TextView tvDestination, tvRadiusIndicator, tvCurrentRingTone;
+    private TextView tvDestination, tvRadiusIndicator;
     private SeekBar radiusSeekbar;
 
     private static final int PLACE_AUTOCOMPLETE_REQUEST_CODE = 1;
     private static final int PLACE_PICKER_REQUEST = 2;
-    private static final int TONE_PICKER = 3;
 
     private int progressChange = 0;
     private double radius = 0;
     private int finalRadius = 1100;
     private String entryRadius = "1100";
-    private Uri uriRingTone;
-    private String selectedRingTone;
 
     private VolleySingleton volleySingleton;
     private RequestQueue requestQueue;
@@ -79,6 +75,10 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().requestFeature(Window.FEATURE_CONTENT_TRANSITIONS);
+        }
+
         setContentView(R.layout.activity_add_destination);
         setTitle("Add destination");
 
@@ -88,7 +88,7 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.fragmentMapAddDestination);
         mapFragment.getMapAsync(this);
 
-        android.support.v7.app.ActionBar actionBar = getSupportActionBar();
+        ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) {
             actionBar.setHomeButtonEnabled(true);
             actionBar.setDisplayHomeAsUpEnabled(true);
@@ -100,12 +100,10 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
         ivPickMap = (ImageView) findViewById(R.id.ivPickMap);
         etTitle = (EditText) findViewById(R.id.etTitle);
         cvDestination = (CardView) findViewById(R.id.cvDestination);
-        cvRingTone = (CardView) findViewById(R.id.cvRingTone);
         btnCancel = (Button) findViewById(R.id.btnCancel);
         btnDone = (Button) findViewById(R.id.btnDone);
         tvDestination = (TextView) findViewById(R.id.tvDestination);
         tvRadiusIndicator = (TextView) findViewById(R.id.tvRadiusIndicator);
-        tvCurrentRingTone = (TextView) findViewById(R.id.tvCurrentRingTone);
         radiusSeekbar = (SeekBar) findViewById(R.id.radiusSeekbar);
 
         Bundle extras = getIntent().getExtras();
@@ -118,7 +116,6 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
             String Destination = extras.getString("updateDestination");
             String LatLng = extras.getString("updateLatLng");
             String Radius = extras.getString("updateRadius");
-            selectedRingTone = extras.getString("updateRingTone");
 
             etTitle.setText(Title);
             tvDestination.setText(Destination);
@@ -156,11 +153,17 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
         btnDone.setOnClickListener(this);
         ivPickMap.setOnClickListener(this);
         cvDestination.setOnClickListener(this);
-        cvRingTone.setOnClickListener(this);
         radiusSeekbar.setOnSeekBarChangeListener(this);
 
-        uriRingTone = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
-        selectedRingTone = uriRingTone.toString();
+        setupWindowAnimations();
+    }
+
+    private void setupWindowAnimations() {
+        Fade fade = new Fade();
+        fade.setDuration(5000);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setEnterTransition(new Explode());
+        }
     }
 
     @Override
@@ -169,17 +172,10 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
         switch (item.getItemId()) {
             case android.R.id.home:
                 this.finish();
-                overridePendingTransition(R.anim.slide_enter, R.anim.slide_exit);
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
-    }
-
-    @Override
-    public void onBackPressed() {
-        this.finish();
-        overridePendingTransition(R.anim.slide_enter, R.anim.slide_exit);
     }
 
     @Override
@@ -208,7 +204,6 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
                 break;
             case R.id.btnCancel:
                 this.finish();
-                overridePendingTransition(R.anim.slide_enter, R.anim.slide_exit);
                 break;
             case R.id.btnDone:
                 if (isUpdate){
@@ -222,7 +217,7 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
                         }else {
                             DBAdapter dbAdapter = new DBAdapter(AddDestination.this);
                             dbAdapter.open();
-                            dbAdapter.updateEntry(updateDestinationRowNumber, addTitle, addDestination, finalLatLong, entryRadius, selectedRingTone);
+                            dbAdapter.updateEntry(updateDestinationRowNumber, addTitle, addDestination, finalLatLong, entryRadius);
                             dbAdapter.close();
                             Toast.makeText(getApplicationContext(), "Entry updated!", Toast.LENGTH_SHORT).show();
                             this.finish();
@@ -242,32 +237,15 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
                             DBAdapter inputDestination = new DBAdapter(AddDestination.this);
                             inputDestination.open();
                             int numRows = inputDestination.getNumberOfRows();
-                            inputDestination.insertEntry(numRows + 1, addTitle, addDestination, finalLatLong, entryRadius, selectedRingTone);
+                            inputDestination.insertEntry(numRows + 1, addTitle, addDestination, finalLatLong, entryRadius);
                             inputDestination.close();
                             Toast.makeText(getApplicationContext(), "Entry added!", Toast.LENGTH_SHORT).show();
-
-                            DBAdapter db = new DBAdapter(AddDestination.this);
-                            db.open();
-                            ArrayList<String> arrayList;
-                            arrayList = db.getIdList();
-                            Toast.makeText(AddDestination.this, String.valueOf(arrayList), Toast.LENGTH_SHORT).show();
-                            db.close();
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
                         this.finish();
                     }
                 }
-                break;
-            case R.id.cvRingTone:
-                final Uri currentTone= RingtoneManager.getActualDefaultRingtoneUri(AddDestination.this, RingtoneManager.TYPE_ALARM);
-                Intent intent = new Intent(RingtoneManager.ACTION_RINGTONE_PICKER);
-                intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM);
-                intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Tone");
-                intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, currentTone);
-                intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false);
-                intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true);
-                startActivityForResult(intent, TONE_PICKER);
                 break;
         }
     }
@@ -299,17 +277,6 @@ public class AddDestination extends AppCompatActivity implements View.OnClickLis
                 processlatlng(latlong);
             } else if (resultCode == PlaceAutocomplete.RESULT_ERROR) {
                 Status status = PlaceAutocomplete.getStatus(this, data);
-            }
-        }
-        if (requestCode == TONE_PICKER) {
-            if (resultCode == RESULT_OK) {
-                uriRingTone = data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI);
-                Ringtone ringTone = RingtoneManager.getRingtone(getApplicationContext(), uriRingTone);
-                if (uriRingTone != null) {
-                    String NameOfRingTone = ringTone.getTitle(getApplicationContext());
-                    selectedRingTone = uriRingTone.toString();
-                    tvCurrentRingTone.setText(NameOfRingTone);//NameOfRingTone);
-                }
             }
         }
     }

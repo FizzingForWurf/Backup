@@ -1,6 +1,7 @@
 package itrans.itranstest;
 
 import android.Manifest;
+import android.annotation.TargetApi;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -13,6 +14,9 @@ import android.graphics.Color;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.provider.Settings;
@@ -25,14 +29,18 @@ import android.support.v4.widget.SimpleCursorAdapter;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.transition.Fade;
+import android.transition.Slide;
 import android.util.Log;
 import android.view.ContextMenu;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.Window;
 import android.widget.AbsListView;
 import android.widget.AdapterView;
+import android.widget.Button;
 import android.widget.ListView;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -63,10 +71,8 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     private LocationManager locationManager;
     private Location mLastLocation;
     private LatLng LastLatLng;
-    private final static int PLAY_SERVICES_RESOLUTION_REQUEST = 1000;
     private Marker mCurrLocationMarker;
     private int zoom_padding = 130;
-    private static int REQUEST_CODE_RECOVER_PLAY_SERVICES = 200;
 
     TextView tvtesting;
     ListView lvDestinations;
@@ -86,16 +92,20 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     private String returnedTitle = null;
     private String returnedLatLong = null;
     private String returnedRadius = null;
-    private String returnedRingTone = null;
     private String returnedDestination = null;
     private float distance;
 
     private SharedPreferences prefs;
     int number;
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().requestFeature(Window.FEATURE_CONTENT_TRANSITIONS);
+        }
+
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -132,10 +142,24 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                 } else {
                     Intent intent = new Intent(MainActivity.this, AddDestination.class);
                     startActivity(intent);
-                    overridePendingTransition(R.anim.slide_in, R.anim.slide_out);
                 }
             }
         });
+
+        setupWindowAnimations();
+    }
+
+    private void setupWindowAnimations() {
+        Slide slide = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            slide = new Slide();
+        }
+        if (slide != null) {
+            slide.setDuration(5000);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setExitTransition(new Fade());
+        }
     }
 
     @Override
@@ -158,60 +182,62 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             }
         } else {
             if (!isOneSwitchChecked) {
-                positionOfActivatedSwitch = position;
-                map.clear();
-                if (mCurrLocationMarker != null && LastLatLng != null) {
-                    mCurrLocationMarker = map.addMarker(new MarkerOptions().position(LastLatLng));
-                }
-
-                alarmSwitch.setChecked(true);
-                isOneSwitchChecked = true;
-
-                DBAdapter db = new DBAdapter(this);
-                db.open();
-                number = positionOfActivatedSwitch + 1;
-                String numberInList = Integer.toString(number);
-                returnedTitle = db.getTitle(numberInList);
-                returnedLatLong = db.getLatLng(numberInList);
-                returnedRadius = db.getRadius(numberInList);
-                returnedRingTone = db.getRingTone(numberInList);
-                returnedDestination = db.getDestination(numberInList);
-                db.close();
-
-                float distanceleftInMeters = checkDistanceFromDestination();
-                float distanceleftInKm = distanceleftInMeters / 1000;
-                BigDecimal result;
-                result = round(distanceleftInKm, 2);
-
-                float radius = Float.parseFloat(returnedRadius);
-                if (distance <= radius) {
-                    isNearDestinationInitially = true;
-                }
-
-                if (isNearDestinationInitially) {
-                    isNearDestinationInitially = false;
-                    if (mLastLocation != null) {
-                        Toast.makeText(getApplicationContext(), "You are already near your destination!", Toast.LENGTH_SHORT).show();
+                if (statusCheck()) {
+                    positionOfActivatedSwitch = position;
+                    map.clear();
+                    if (mCurrLocationMarker != null && LastLatLng != null) {
+                        mCurrLocationMarker = map.addMarker(new MarkerOptions().position(LastLatLng));
                     }
-                    //trigger alarm and set switch to off
-                    alarmSwitch.setChecked(false);
-                    turnOffSwitch();
-                    tvDistance.setText("Distance left:");
-                } else {
-                    //Start the location tracking service
-                    isServiceRunning = isMyServiceRunning(MyLocationTrackingService.class);
-                    if (!isServiceRunning) {
-                        Intent serviceIntent = new Intent(this, MyLocationTrackingService.class);
-                        serviceIntent.putExtra("AlertRadius", returnedRadius);
-                        serviceIntent.putExtra("AlertDestination", returnedLatLong);
-                        serviceIntent.putExtra("AlertRingTone", returnedRingTone);
-                        serviceIntent.putExtra("AlertTitle", returnedTitle);
-                        startService(serviceIntent);
 
-                        AddDestinationMarkerOnMap(returnedLatLong, returnedRadius);
+                    alarmSwitch.setChecked(true);
+                    isOneSwitchChecked = true;
+
+                    DBAdapter db = new DBAdapter(this);
+                    db.open();
+                    number = positionOfActivatedSwitch + 1;
+                    String numberInList = Integer.toString(number);
+                    returnedTitle = db.getTitle(numberInList);
+                    returnedLatLong = db.getLatLng(numberInList);
+                    returnedRadius = db.getRadius(numberInList);
+                    returnedDestination = db.getDestination(numberInList);
+                    db.close();
+
+                    float distanceleftInMeters = checkDistanceFromDestination();
+                    float distanceleftInKm = distanceleftInMeters / 1000;
+                    BigDecimal result;
+                    result = round(distanceleftInKm, 2);
+
+                    float radius = Float.parseFloat(returnedRadius);
+                    if (distance <= radius) {
+                        isNearDestinationInitially = true;
                     }
-                    String hi = "Distance left: " + result + "km";
-                    tvDistance.setText(hi);
+
+                    if (isNearDestinationInitially) {
+                        isNearDestinationInitially = false;
+                        if (mLastLocation != null) {
+                            Toast.makeText(getApplicationContext(), "You are already near your destination!", Toast.LENGTH_SHORT).show();
+                        }
+                        //trigger alarm and set switch to off
+                        alarmSwitch.setChecked(false);
+                        turnOffSwitch();
+                        tvDistance.setText("Distance left:");
+                    } else {
+                        //Start the location tracking service
+                        isServiceRunning = isMyServiceRunning(MyLocationTrackingService.class);
+                        if (!isServiceRunning) {
+                            Intent serviceIntent = new Intent(this, MyLocationTrackingService.class);
+                            serviceIntent.putExtra("AlertRadius", returnedRadius);
+                            serviceIntent.putExtra("AlertDestination", returnedLatLong);
+                            serviceIntent.putExtra("AlertTitle", returnedTitle);
+                            startService(serviceIntent);
+
+                            AddDestinationMarkerOnMap(returnedLatLong, returnedRadius);
+                        }
+                        String hi = "Distance left: " + result + "km";
+                        tvDistance.setText(hi);
+                    }
+                }else{
+                    checkForGPS();
                 }
             } else {
                 alarmSwitch.setChecked(false);
@@ -222,6 +248,45 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         something.refreshDrawableState();
     }
 
+    private void checkForGPS(){
+        LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        boolean gps_enabled = false;
+
+        try {
+            gps_enabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if (!gps_enabled) {
+            //gps is enabled, not network
+            final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Location services disabled");
+            builder.setCancelable(false);
+            builder.setMessage("iTrans requires location services to be enabled to function properly." +
+                    " Your GPS seems to be disabled, please enable location services before launching iTrans again.")
+                    .setCancelable(false)
+                    .setPositiveButton("ENABLE", new DialogInterface.OnClickListener() {
+                        public void onClick(final DialogInterface dialog, final int id) {
+                            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                            startActivity(intent);
+                        }
+                    })
+                    .setNegativeButton("CLOSE APP", new DialogInterface.OnClickListener() {
+                        public void onClick(final DialogInterface dialog, final int id) {
+                            dialog.cancel();
+                            MainActivity.this.finish();
+                        }
+                    });
+            final AlertDialog alert = builder.create();
+            alert.show();
+
+            Button positiveButton = alert.getButton(DialogInterface.BUTTON_POSITIVE);
+            Button negativeButton = alert.getButton(DialogInterface.BUTTON_NEGATIVE);
+            positiveButton.setTextColor(Color.parseColor("#2196F3"));
+            negativeButton.setTextColor(Color.parseColor("#2196F3"));
+        }
+    }
 
     private void turnOffSwitch() {
         positionOfActivatedSwitch = -1;
@@ -230,20 +295,10 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         returnedTitle = null;
         returnedLatLong = null;
         returnedRadius = null;
-        returnedRingTone = null;
         returnedDestination = null;
     }
 
     public View getViewByPosition(int pos, ListView listView) {
-//        final int firstListItemPosition = listView.getFirstVisiblePosition();
-//        final int lastListItemPosition = firstListItemPosition + listView.getChildCount() - 1;
-//
-//        if (pos < firstListItemPosition || pos > lastListItemPosition ) {
-//            return listView.getAdapter().getView(pos, null, listView);
-//        } else {
-//            final int childIndex = pos - firstListItemPosition;
-//            return listView.getChildAt(childIndex);
-//        }
         return listView.getChildAt(pos - listView.getFirstVisiblePosition());
     }
 
@@ -284,7 +339,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
             distance = currentLocation.distanceTo(locationDestination);
         } else {
-            Toast.makeText(getApplicationContext(), "Please turn on location services", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "Unable to find location.", Toast.LENGTH_SHORT).show();
         }
         return distance;
     }
@@ -315,24 +370,114 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         return !(!gps_enabled || !network_enabled);
     }
 
-    private void buildAlertMessageNoGps() {
-        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("Your GPS seems to be disabled, do you want to enable it? Please ensure that you have stable network connection too.")
-                .setCancelable(false)
-                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                    public void onClick(final DialogInterface dialog, final int id) {
-                        Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                        startActivity(intent);
-                    }
-                })
-                .setNegativeButton("No", new DialogInterface.OnClickListener() {
-                    public void onClick(final DialogInterface dialog, final int id) {
-                        dialog.cancel();
-                        MainActivity.this.finish();
-                    }
-                });
-        final AlertDialog alert = builder.create();
-        alert.show();
+    private void checkForGPSorNetworkConnection() {
+        LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        boolean gps_enabled = false;
+
+        try {
+            gps_enabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if (!gps_enabled && haveNetworkConnection()){
+            //gps is enabled, not network
+            final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Location services disabled");
+            builder.setCancelable(false);
+            builder.setMessage("iTrans requires location services to be enabled to function properly." +
+                    " Your GPS seems to be disabled, please enable location services before launching iTrans again.")
+                    .setCancelable(false)
+                    .setPositiveButton("ENABLE", new DialogInterface.OnClickListener() {
+                        public void onClick(final DialogInterface dialog, final int id) {
+                            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                            startActivity(intent);
+                        }
+                    })
+                    .setNegativeButton("CLOSE APP", new DialogInterface.OnClickListener() {
+                        public void onClick(final DialogInterface dialog, final int id) {
+                            dialog.cancel();
+                            MainActivity.this.finish();
+                        }
+                    });
+            final AlertDialog alert = builder.create();
+            alert.show();
+
+            Button positiveButton = alert.getButton(DialogInterface.BUTTON_POSITIVE);
+            Button negativeButton = alert.getButton(DialogInterface.BUTTON_NEGATIVE);
+            positiveButton.setTextColor(Color.parseColor("#2196F3"));
+            negativeButton.setTextColor(Color.parseColor("#2196F3"));
+        }else if (gps_enabled && !haveNetworkConnection()){
+            //network enabled, not gps
+            final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("No network connection");
+            builder.setCancelable(false);
+            builder.setMessage("iTrans requires network connection to be enabled to function properly." +
+                    " Please ensure that you have stable network connection before launching iTrans again.")
+                    .setCancelable(false)
+                    .setPositiveButton("OPEN SETTINGS", new DialogInterface.OnClickListener() {
+                        public void onClick(final DialogInterface dialog, final int id) {
+                            Intent intent = new Intent(android.provider.Settings.ACTION_SETTINGS);
+                            startActivity(intent);
+                        }
+                    })
+                    .setNegativeButton("CLOSE APP", new DialogInterface.OnClickListener() {
+                        public void onClick(final DialogInterface dialog, final int id) {
+                            dialog.cancel();
+                            MainActivity.this.finish();
+                        }
+                    });
+            final AlertDialog alert = builder.create();
+            alert.show();
+
+            Button positiveButton = alert.getButton(DialogInterface.BUTTON_POSITIVE);
+            Button negativeButton = alert.getButton(DialogInterface.BUTTON_NEGATIVE);
+            positiveButton.setTextColor(Color.parseColor("#2196F3"));
+            negativeButton.setTextColor(Color.parseColor("#2196F3"));
+        }else if (!gps_enabled && !haveNetworkConnection()){
+            final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Both location services and network connection are disabled");
+            builder.setCancelable(false);
+            builder.setMessage("iTrans requires both location services and network connection to be enabled to function properly." +
+                    " Please enable these in the settings before launching iTrans again.")
+                    .setCancelable(false)
+                    .setPositiveButton("OPEN SETTINGS", new DialogInterface.OnClickListener() {
+                        public void onClick(final DialogInterface dialog, final int id) {
+                            Intent intent = new Intent(android.provider.Settings.ACTION_SETTINGS);
+                            startActivity(intent);
+                        }
+                    })
+                    .setNegativeButton("CLOSE APP", new DialogInterface.OnClickListener() {
+                        public void onClick(final DialogInterface dialog, final int id) {
+                            dialog.cancel();
+                            MainActivity.this.finish();
+                        }
+                    });
+            final AlertDialog alert = builder.create();
+            alert.show();
+
+            Button positiveButton = alert.getButton(DialogInterface.BUTTON_POSITIVE);
+            Button negativeButton = alert.getButton(DialogInterface.BUTTON_NEGATIVE);
+            positiveButton.setTextColor(Color.parseColor("#2196F3"));
+            negativeButton.setTextColor(Color.parseColor("#2196F3"));
+        }
+    }
+
+    private boolean haveNetworkConnection() {
+        boolean haveConnectedWifi = false;
+        boolean haveConnectedMobile = false;
+
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo[] netInfo = cm.getAllNetworkInfo();
+        for (NetworkInfo ni : netInfo) {
+            if (ni.getTypeName().equalsIgnoreCase("WIFI"))
+                if (ni.isConnected())
+                    haveConnectedWifi = true;
+            if (ni.getTypeName().equalsIgnoreCase("MOBILE"))
+                if (ni.isConnected())
+                    haveConnectedMobile = true;
+        }
+        return haveConnectedWifi || haveConnectedMobile;
     }
 
     private void populateListViewFromDatabase() {
@@ -382,13 +527,16 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             try {
                 String provider = locationManager.getBestProvider(c, true);
                 mLastLocation = locationManager.getLastKnownLocation(provider);
+                if (mLastLocation != null) {
+                    LastLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+                }
 
                 locationManager.requestLocationUpdates(provider, 2000, 10, locationListener);
             } catch (SecurityException e) {
                 Toast.makeText(getApplicationContext(), "Cannot detect...", Toast.LENGTH_SHORT).show();
             }
         }else{
-            buildAlertMessageNoGps();
+            checkForGPSorNetworkConnection();
         }
         //prefs.edit().putInt("currentSelectedSwitch", -1).apply(); //this is for debugging
         positionOfActivatedSwitch = prefs.getInt("currentSelectedSwitch", -1);
@@ -446,7 +594,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         returnedTitle = db.getTitle(numberInList);
         returnedLatLong = db.getLatLng(numberInList);
         returnedRadius = db.getRadius(numberInList);
-        returnedRingTone = db.getRingTone(numberInList);
         db.close();
 
         isRestoreDestinationMarkerCalled = true;
@@ -468,6 +615,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     }
 
     private void AddDestinationMarkerOnMap(String receivedLatLng, String alertRadius) {
+        LatLngBounds bounds = null;
         int radius = Integer.parseInt(alertRadius);
         String[] latANDlong = receivedLatLng.split(",");
         double latitude = Double.parseDouble(latANDlong[0]);
@@ -493,9 +641,16 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             LatLngBounds.Builder builder = new LatLngBounds.Builder();
             builder.include(LastLatLng);
             builder.include(selectedLocation);
-            LatLngBounds bounds = builder.build();
-            map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, zoom_padding));
+            bounds = builder.build();
         }
+
+        final LatLngBounds finalBounds = bounds;
+        map.setOnMapLoadedCallback(new GoogleMap.OnMapLoadedCallback() {
+            @Override
+            public void onMapLoaded() {
+                map.moveCamera(CameraUpdateFactory.newLatLngBounds(finalBounds, zoom_padding));
+            }
+        });
     }
 
     @Override
@@ -571,14 +726,23 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         } else if (id == R.id.nav_about) {
             AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
             builder.setTitle("About us");
+            builder.setCancelable(true);
             builder.setMessage("We are iTans, a group of Secondary 3s from Hwa Chong Institution, " +
                     "and we present an app that makes your everyday commuting much easier.");
+
+            builder.setPositiveButton(
+                    "Ok",
+                    new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int id) {
+                            dialog.cancel();
+                        }
+                    });
 
             AlertDialog alert = builder.create();
             alert.show();
         } else if (id == R.id.nav_settings) {
-//            Intent c = new Intent(MainActivity.this, Settings.class);
-//            startActivity(c);
+            Intent c = new Intent(MainActivity.this, SettingsActivity.class);
+            startActivity(c);
         } else if (id == R.id.nav_nearbyBus) {
             Intent i = new Intent(MainActivity.this, NearbyBusStops.class);
             if (mLastLocation != null) {
@@ -600,10 +764,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     @Override
     public void onCreateContextMenu(ContextMenu menu, View v,ContextMenu.ContextMenuInfo menuInfo) {
         super.onCreateContextMenu(menu, v, menuInfo);
-//        if(v.getId() == R.id.lvDestinations) {
-//            menu.add(1,0,0, "Edit");
-//            menu.add(1, 0, 0, "Delete");
-//        }
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.delete_edit_alarm_menu, menu);
     }
@@ -619,7 +779,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                 String updateDestination = db1.getDestination(Integer.toString(information.position + 1));
                 String updateLatLng = db1.getLatLng(Integer.toString(information.position + 1));
                 String updateRadius = db1.getRadius(Integer.toString(information.position + 1));
-                String updateRingTone = db1.getRingTone(Integer.toString(information.position + 1));
                 db1.close();
                 Intent i = new Intent(MainActivity.this, AddDestination.class);
                 i.putExtra("updateRowNumber", information.position + 1);
@@ -627,14 +786,12 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                 i.putExtra("updateDestination", updateDestination);
                 i.putExtra("updateLatLng", updateLatLng);
                 i.putExtra("updateRadius", updateRadius);
-                i.putExtra("updateRingTone", updateRingTone);
                 startActivity(i);
-                overridePendingTransition(R.anim.slide_in, R.anim.slide_out);
                 break;
             case R.id.deleteAlarmMenu:
-                if (positionOfActivatedSwitch < 0) {
-                    AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
-                    int positionOfDeletedEntry = info.position;
+                AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
+                int positionOfDeletedEntry = info.position;
+                if (positionOfDeletedEntry != positionOfActivatedSwitch) {
                     DBAdapter db = new DBAdapter(this);
                     db.open();
                     Log.e("DELETE POSITION", String.valueOf(positionOfDeletedEntry));
@@ -659,7 +816,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
                     db.close();
                 }else {
-                    Toast.makeText(MainActivity.this, "Please turn off active alarm to delete entries.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Please turn off active alarm to delete entry.", Toast.LENGTH_SHORT).show();
                 }
                 populateListViewFromDatabase();
                 toggleVisibility();
@@ -732,12 +889,14 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             if (hasArrived) {
                 if (positionOfActivatedSwitch > -1) {
                     View view = getViewByPosition(positionOfActivatedSwitch, lvDestinations);
-                    if (view.getVisibility() == View.VISIBLE) {
-                        Switch alarmSwitch = (Switch) view.findViewById(R.id.alarmSwitch);
-                        TextView alarmDistance = (TextView) view.findViewById(R.id.tvAlarmDistance);
-                        alarmDistance.setText("Distance left: ");
-                        alarmSwitch.setChecked(false);
-                        view.refreshDrawableState();
+                    if (view != null) {
+                        if (view.getVisibility() == View.VISIBLE) {
+                            Switch alarmSwitch = (Switch) view.findViewById(R.id.alarmSwitch);
+                            TextView alarmDistance = (TextView) view.findViewById(R.id.tvAlarmDistance);
+                            alarmDistance.setText("Distance left: ");
+                            alarmSwitch.setChecked(false);
+                            view.refreshDrawableState();
+                        }
                     }
                 }
                 map.clear();
@@ -745,6 +904,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                         .position(LastLatLng)
                         .title("You are here")
                         .icon(BitmapDescriptorFactory.defaultMarker()));
+                map.animateCamera(CameraUpdateFactory.newLatLngZoom(LastLatLng, 16));
                 turnOffSwitch();
                 hasArrived = false;
             }

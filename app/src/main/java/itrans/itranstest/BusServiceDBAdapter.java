@@ -2,6 +2,7 @@ package itrans.itranstest;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.DatabaseUtils;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
@@ -69,6 +70,10 @@ public class BusServiceDBAdapter {
             return false;
         }
         return true;
+    }
+
+    public void removeAllEntries(){
+        _db.delete(DATABASE_TABLE, null, null);
     }
 
     public Cursor retrieveAllEntriesCursor(){

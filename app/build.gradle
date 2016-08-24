@@ -10,6 +10,7 @@ android {
         targetSdkVersion 24
         versionCode 1
         versionName "1.0"
+        multiDexEnabled true
     }
     buildTypes {
         release {
@@ -17,6 +18,14 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
+    dexOptions {
+        javaMaxHeapSize "4g"
+    }
+}
+
+repositories {
+    mavenCentral()
 }
 
 dependencies {
@@ -30,4 +39,6 @@ dependencies {
     compile 'com.google.android.gms:play-services:9.4.0'
     compile 'com.github.arimorty:floatingsearchview:2.0.2'
     compile 'com.google.guava:guava:19.0'
+    compile 'com.android.support:multidex:1.0.1'
+    compile 'com.github.paolorotolo:appintro:4.0.0'
 }

@@ -52,7 +52,11 @@ public class Splash extends Activity{
         splashDescription = (TextView) findViewById(R.id.splashDescription);
         label = 0;
 
-        if(busList.isEmpty()){
+        if(busList.size() <= 410){
+            if (!busList.isEmpty()) {
+                mApplication.deleteAll(getApplicationContext());
+                busList.clear();
+            }
             getBusNo();
         }else {
             Thread timer = new Thread(){
@@ -96,7 +100,7 @@ public class Splash extends Activity{
                                     lastNo = busNo;
                                     mApplication.addToDatabase(busNo,getApplication());
                                     splashDescription.setText(Html.fromHtml("First time run initialisation" +
-                                            "<br />" + "<small>"  +"Items downloaded: " + String.valueOf(label) + "/412" +
+                                            "<br />" + "<small>"  +"Items downloaded: " + String.valueOf(label) + "/416" +
                                             "<br />" + "Please do not exit the application." + "</small>"));
                                 }
                             }

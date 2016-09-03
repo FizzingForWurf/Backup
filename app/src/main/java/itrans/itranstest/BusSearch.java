@@ -388,7 +388,7 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback {
             public void onClick(View view) {
                 float zoom = map.getCameraPosition().zoom;
                 LatLng currLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
-                if (zoom >= 10) {
+                if (zoom >= 12) {
                     map.animateCamera(CameraUpdateFactory.newLatLng(currLatLng));
                 } else{
                     map.animateCamera(CameraUpdateFactory.newLatLngZoom(currLatLng, 16));

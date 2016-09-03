@@ -19,10 +19,12 @@ import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v4.widget.SimpleCursorAdapter;
@@ -98,7 +100,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     private SharedPreferences prefs;
     int number;
 
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    //@TargetApi(Build.VERSION_CODES.LOLLIPOP)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -122,7 +124,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         drawer.setDrawerListener(toggle);
         toggle.syncState();
 
-        prefs = this.getPreferences(Context.MODE_PRIVATE);
+        prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
 
         lvDestinations = (ListView) findViewById(R.id.lvDestinations);
         lvDestinations.setOnItemLongClickListener(this);
@@ -515,35 +517,73 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         toggleVisibility();
 
         if (statusCheck()) {
-            locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+            if (ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.ACCESS_FINE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) {
+                // No explanation needed, we can request the permission.
 
-            Criteria c = new Criteria();
-            c.setAccuracy(Criteria.ACCURACY_FINE);
-            c.setAltitudeRequired(false);
-            c.setBearingRequired(false);
-            c.setCostAllowed(true);
-            c.setPowerRequirement(Criteria.POWER_LOW);
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 100);
 
-            try {
-                String provider = locationManager.getBestProvider(c, true);
-                mLastLocation = locationManager.getLastKnownLocation(provider);
-                if (mLastLocation != null) {
-                    LastLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+                // MY_PERMISSIONS_REQUEST_READ_CONTACTS is an
+                // app-defined int constant. The callback method gets the
+                // result of the request.
+            } else {
+                //Permission is granted
+
+                locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
+                Criteria c = new Criteria();
+                c.setAccuracy(Criteria.ACCURACY_FINE);
+                c.setAltitudeRequired(false);
+                c.setBearingRequired(false);
+                c.setCostAllowed(true);
+                c.setPowerRequirement(Criteria.POWER_LOW);
+
+                try {
+                    String provider = locationManager.getBestProvider(c, true);
+                    mLastLocation = locationManager.getLastKnownLocation(provider);
+                    if (mLastLocation != null) {
+                        LastLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+                    }
+
+                    locationManager.requestLocationUpdates(provider, 2000, 10, locationListener);
+                } catch (SecurityException e) {
+                    Toast.makeText(getApplicationContext(), "Cannot detect...", Toast.LENGTH_SHORT).show();
                 }
-
-                locationManager.requestLocationUpdates(provider, 2000, 10, locationListener);
-            } catch (SecurityException e) {
-                Toast.makeText(getApplicationContext(), "Cannot detect...", Toast.LENGTH_SHORT).show();
             }
         }else{
             checkForGPSorNetworkConnection();
         }
         //prefs.edit().putInt("currentSelectedSwitch", -1).apply(); //this is for debugging
         positionOfActivatedSwitch = prefs.getInt("currentSelectedSwitch", -1);
+        if (map != null){
+            map.clear();
+        }
+        Log.e("POSITION OF SWITCH", String.valueOf(positionOfActivatedSwitch));
         if (positionOfActivatedSwitch != -1) {
             startRestoreState(positionOfActivatedSwitch);
         }
         super.onResume();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        switch (requestCode) {
+            case 100: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                    // permission was granted
+                } else {
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+                }
+            }
+
+            // other 'case' lines to check for other
+            // permissions this app might request
+        }
     }
 
     @Override
@@ -656,6 +696,9 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     @Override
     public void onMapReady(GoogleMap googleMap) {
         map = googleMap;
+        if (positionOfActivatedSwitch == -1){
+            map.clear();
+        }
         map.setMapType(GoogleMap.MAP_TYPE_NORMAL);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
                 PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,
@@ -845,8 +888,10 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                     .target(LastLatLng)
                     .zoom(16)
                     .build();
-            map.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
-            mCurrLocationMarker = map.addMarker(markerOptions);
+            if (map != null) {
+                map.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+                mCurrLocationMarker = map.addMarker(markerOptions);
+            }
 
             if (returnedRadius != null && returnedLatLong != null) {
 

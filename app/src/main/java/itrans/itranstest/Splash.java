@@ -89,7 +89,7 @@ public class Splash extends Activity{
                     public void onResponse(JSONObject response) {
                         try {
                             JSONArray jsonArray = response.getJSONArray("value");
-                            if(jsonArray.length()<50) {
+                            if(jsonArray.length() < 50) {
                                 end = true;
                             }
                             for (int i = 0; i < jsonArray.length(); i++) {

@@ -11,7 +11,6 @@ import android.database.sqlite.SQLiteOpenHelper;
 import java.util.ArrayList;
 
 public class DBAdapter {
-
     private static final String DATABASE_NAME = "destinationDB.db";
     private static final String DATABASE_TABLE = "alarms";
     private static final int DATABASE_VERSION = 1;

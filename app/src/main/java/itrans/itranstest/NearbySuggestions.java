@@ -11,6 +11,7 @@ public class NearbySuggestions implements SearchSuggestion{
     private String mPlaceID;
 
     private String busStopName;
+    private String busStopID;
     private Double busStopLat;
     private Double busStopLng;
 
@@ -99,5 +100,13 @@ public class NearbySuggestions implements SearchSuggestion{
 
     public void setBusStopLng(Double busStopLng) {
         this.busStopLng = busStopLng;
+    }
+
+    public String getBusStopID() {
+        return busStopID;
+    }
+
+    public void setBusStopID(String busStopID) {
+        this.busStopID = busStopID;
     }
 }

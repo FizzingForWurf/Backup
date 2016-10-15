@@ -10,6 +10,7 @@ import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -48,6 +49,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Array;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -57,6 +59,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import itrans.itranstest.Internet.MyApplication;
 import itrans.itranstest.Internet.VolleySingleton;
@@ -72,22 +76,17 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback {
     private FloatingSearchView mSearchView;
     private FloatingActionButton fab;
 
-    private List<Double> singleCoordinates = new ArrayList<>();
-    private List<List<Double>> busCoordinates = new ArrayList<>();
-    private List<Integer> allBusStops = new ArrayList<>();
-
     private List<String> BusServiceNumberList = new ArrayList<String>();
     private List<BusRoutes> BusSearchSuggestionList = new ArrayList<>();
+
+    private ArrayList<String> direction1 = new ArrayList<>();
+    private ArrayList<String> direction2 = new ArrayList<>();
+    private ArrayList<NearbySuggestions> busStopsList = new ArrayList<>();
+    private LatLngBounds.Builder builder = new LatLngBounds.Builder();
 
     private VolleySingleton volleySingleton;
     private RequestQueue requestQueue;
 
-    private int count;
-    private int lastCode;
-    private int listCount;
-    private boolean dontCall;
-    private boolean end;
-    private String query;
     private String selectedServiceNumber;
     private String timeInMin;
     private long diff;
@@ -163,35 +162,104 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback {
         mSearchView.setOnSearchListener(new FloatingSearchView.OnSearchListener() {
             @Override
             public void onSuggestionClicked(SearchSuggestion searchSuggestion) {
+                if (map != null) {
+                    map.clear();
+                }
+                direction1.clear();
+                direction2.clear();
+                busStopsList.clear();
+                builder = new LatLngBounds.Builder();
+
                 if (progressDialog == null) {
                     progressDialog = new ProgressDialog(BusSearch.this);
                     progressDialog.setMessage("Calculating...");
                     progressDialog.setCancelable(false);
                 }
                 progressDialog.show();
+
                 for (int i = 0; i < BusServiceNumberList.size(); i++) {
-                    if (BusServiceNumberList.get(i).equals(searchSuggestion.getBody())) {
+                    Log.e("BUS SERVICES IN LIST", String.valueOf(BusServiceNumberList.get(i)));
+                    String clickedBusService = searchSuggestion.getBody().toUpperCase();
+                    if (BusServiceNumberList.get(i).equals(clickedBusService)) {
                         selectedServiceNumber = BusServiceNumberList.get(i);
-                        count = (int) Math.round(i * 1.1) * 50;
+                        BusServiceDBAdapter db = new BusServiceDBAdapter(getApplicationContext());
+                        db.open();
+                        String direction_one_string = db.getdirectionone(i + 1);
+                        String direction_two_string = db.getdirectiontwo(i + 1);
+
+                        String something = direction_one_string.substring(direction_one_string.indexOf("[") + 1, direction_one_string.indexOf("]"));
+                        String[] resplit = something.split( ", ");
+                        for (String s : resplit) {
+                            direction1.add(s);
+                            System.out.println(s);
+                        }
+
+                        if (!direction_two_string.equals("LOOP")) {
+                            String noBraces = direction_two_string.substring(direction_two_string.indexOf("[") + 1, direction_two_string.indexOf("]"));
+                            String[] split = noBraces.split( ", ");
+                            for (String a : split) {
+                                direction2.add(a);
+                                System.out.println(a);
+                            }
+                        }else{
+                            direction2.clear();
+                        }
+
+                        db.close();
                         break;
                     }
                 }
-                if (!busCoordinates.isEmpty()) {
-                    busCoordinates.clear();
-                }
-                if (!allBusStops.isEmpty()) {
-                    allBusStops.clear();
-                }
-                lastCode = 0;
-                listCount = 0;
-                dontCall = false;
-                end = false;
-                query = null;
-                timeInMin = null;
-                diff = 0;
-                map.clear();
 
-                busStops();
+                mSearchView.setSearchFocused(false);
+                if (direction1.size() > 50){
+                    Thread thread = new Thread(){
+                        public void run(){
+                            getBusStops();
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    for (int w = 0; w < busStopsList.size(); w++) {
+                                        createMarker(busStopsList.get(w).getBusStopName(), busStopsList.get(w).getBusStopID(),
+                                                busStopsList.get(w).getBusStopLat(), busStopsList.get(w).getBusStopLng());
+                                    }
+                                    LatLngBounds bounds = builder.build();
+                                    map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100));
+                                    if (progressDialog != null && progressDialog.isShowing()) {
+                                        progressDialog.dismiss();
+                                    }
+                                }
+                            });
+                        }
+                    };
+                    thread.start();
+                }else {
+                    final Handler handler = new Handler();
+                    handler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            Thread thread = new Thread(){
+                                public void run(){
+                                    getBusStops();
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            for (int w = 0; w < busStopsList.size(); w++) {
+                                                createMarker(busStopsList.get(w).getBusStopName(), busStopsList.get(w).getBusStopID(),
+                                                        busStopsList.get(w).getBusStopLat(), busStopsList.get(w).getBusStopLng());
+                                            }
+                                            LatLngBounds bounds = builder.build();
+                                            map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100));
+                                            if (progressDialog != null && progressDialog.isShowing()) {
+                                                progressDialog.dismiss();
+                                            }
+                                        }
+                                    });
+                                }
+                            };
+                            thread.start();
+                        }
+                    }, 1000);
+                }
             }
 
             @Override
@@ -201,177 +269,85 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback {
         });
     }
 
-    private void busStops() {
-        dontCall = false;
-        count += 50;
-        JsonObjectRequest BusRoutesRequest = new JsonObjectRequest(Request.Method.GET, "http://datamall2.mytransport.sg/ltaodataservice/BusRoutes?$skip=" + String.valueOf(count), null,
-                new Response.Listener<JSONObject>() {
-                    @Override
-                    public void onResponse(JSONObject response) {
-                        try {
-                            JSONArray jsonArray = response.getJSONArray("value");
-                            for (int i = 0; i < jsonArray.length(); i++) {
-                                JSONObject services = jsonArray.getJSONObject(i);
-                                String busNo = services.getString("ServiceNo");
-                                if (busNo.equals(selectedServiceNumber)) {
-                                    String busStopCode = services.getString("BusStopCode");
-                                    if (!busStopCode.matches("(A|B|C|P|N|E|T|S).*")) {
-                                        Integer busStop = Integer.parseInt(busStopCode);
-                                        allBusStops.add(busStop);
-                                    }
-                                    end = true;
-                                } else if (end) {
-                                    dontCall = true;
-                                }
-                            }
-                            if (!dontCall) {
-                                busStops();
-                            } else {
-                                Collections.sort(allBusStops);
-                                count = -50;
-                                for (int i = allBusStops.size() - 1; i >= 0; i--) {
-                                    if (i == allBusStops.size() - 1 || allBusStops.get(i) != lastCode) {
-                                        lastCode = allBusStops.get(i);
-                                    } else {
-                                        allBusStops.remove(i);
-                                    }
-                                }
-                                Log.e("BUSSTOP LIST", Integer.toString(allBusStops.size()));
-                                setMarkers();
-                            }
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                            Toast.makeText(getApplicationContext(), "Error", Toast.LENGTH_LONG).show();
-                        }
-                    }
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Log.e("VOLLEY", "ERROR");
-                        if (progressDialog != null && progressDialog.isShowing()) {
-                            progressDialog.dismiss();
-                        }
-                        Snackbar.make(findViewById(R.id.bus_arrival_parent_view),
-                                "Oh no! Something went wrong. Please check that you are connected to the internet.",
-                                Snackbar.LENGTH_SHORT).show();
-                    }
-                }) {
-            @Override
-            public Map<String, String> getHeaders() throws AuthFailureError {
-                HashMap<String, String> headers = new HashMap<String, String>();
-                headers.put("AccountKey", "6oxHbzoDSzuXhgEvfYLqLQ==");
-                headers.put("UniqueUserID", "2807eaf2-cf3e-4d9a-8468-edd50fd0c1cd");
-                headers.put("accept", "application/json");
-                return headers;
+    private void getBusStops(){
+        BusNumberDBAdapter db = new BusNumberDBAdapter(getApplicationContext());
+        db.open();
+        for (int e = 0; e < direction1.size(); e++) {
+            String stopID = direction1.get(e);
+            char c = stopID.charAt(0);
+            if (!(c >= 'A' && c <= 'Z')){
+                Log.e("BUS Number Test", stopID);
+                String stopLatLngString = db.getBusStopLatLng(stopID);
+                String stopName = db.getBusStopName(stopID);
+                if (stopID.length() < 5){
+                    stopID = "0" + stopID;
+                }
+                Log.e("LATLNG", stopID + ", " + stopLatLngString + ", " + stopName);
+
+                String withoutBraces = stopLatLngString.substring(stopLatLngString.indexOf("(") + 1, stopLatLngString.indexOf(")"));
+                String[] split = withoutBraces.split(",");
+                Double lat = Double.parseDouble(split[0]);
+                Double lon = Double.parseDouble(split[1]);
+                LatLng coordinates = new LatLng(lat, lon);
+                builder.include(coordinates);
+
+                NearbySuggestions busStop = new NearbySuggestions();
+                busStop.setBusStopName(stopName);
+                busStop.setBusStopID(stopID);
+                busStop.setBusStopLat(lat);
+                busStop.setBusStopLng(lon);
+
+                busStopsList.add(busStop);
             }
-        };
-        requestQueue.add(BusRoutesRequest);
+        }
+        if (!direction2.isEmpty()) {
+            for (int e = 0; e < direction2.size(); e++) {
+                String stopID = direction2.get(e);
+                char c = stopID.charAt(0);
+                if (!(c >= 'A' && c <= 'Z')) {
+                    String stopLatLngString = db.getBusStopLatLng(stopID);
+                    String stopName = db.getBusStopName(stopID);
+                    if (stopID.length() < 5) {
+                        stopID = "0" + stopID;
+                    }
+
+                    Log.e("LATLNG", stopID + ", " + stopLatLngString + ", " + stopName);
+
+                    String withoutBraces = stopLatLngString.substring(stopLatLngString.indexOf("(") + 1, stopLatLngString.indexOf(")"));
+                    String[] split = withoutBraces.split(",");
+                    Double lat = Double.parseDouble(split[0]);
+                    Double lon = Double.parseDouble(split[1]);
+                    LatLng secondCoordinates = new LatLng(lat, lon);
+                    builder.include(secondCoordinates);
+
+                    NearbySuggestions busStop = new NearbySuggestions();
+                    busStop.setBusStopName(stopName);
+                    busStop.setBusStopID(stopID);
+                    busStop.setBusStopLat(lat);
+                    busStop.setBusStopLng(lon);
+
+                    busStopsList.add(busStop);
+                }
+            }
+        }
+        db.close();
     }
 
-    private void setMarkers() {
-        dontCall = false;
-        count += 50;
-        JsonObjectRequest BusStopRequest = new JsonObjectRequest(Request.Method.GET, "http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip=" + String.valueOf(count), null,
-                new Response.Listener<JSONObject>() {
-                    @Override
-                    public void onResponse(JSONObject response) {
-                        try {
-                            JSONArray jsonArray = response.getJSONArray("value");
-                            for (int i = 0; i < jsonArray.length(); i++) {
-                                JSONObject services = jsonArray.getJSONObject(i);
-                                String busCode = services.getString("BusStopCode");
-                                if (listCount >= allBusStops.size()) {
-                                    dontCall = true;
-                                } else {
-                                    if (String.valueOf(allBusStops.get(listCount)).length() < 5) {
-                                        query = "0" + String.valueOf(allBusStops.get(listCount));
-                                    } else {
-                                        query = String.valueOf(allBusStops.get(listCount));
-                                    }
-                                    if (query.equals(busCode)) {
-                                        singleCoordinates = new ArrayList<>();
-                                        Double Latitude = services.getDouble("Latitude");
-                                        Double Longitude = services.getDouble("Longitude");
-                                        singleCoordinates.add(Latitude);
-                                        singleCoordinates.add(Longitude);
-                                        busCoordinates.add(singleCoordinates);
-                                        listCount++;
-                                    }
-                                }
-                            }
-                            if (!dontCall) {
-                                setMarkers();
-                            } else {
-                                placeMarkers();
-                            }
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                            Toast.makeText(getApplicationContext(), "Error", Toast.LENGTH_LONG).show();
-                        }
-                    }
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Log.e("VOLLEY", "ERROR");
-                        if (progressDialog != null && progressDialog.isShowing()) {
-                            progressDialog.dismiss();
-                        }
-                        Snackbar.make(findViewById(R.id.bus_arrival_parent_view),
-                                "Oh no! Something went wrong. Please check that you are connected to the internet.",
-                                Snackbar.LENGTH_SHORT).show();
-                    }
-                }) {
-            @Override
-            public Map<String, String> getHeaders() throws AuthFailureError {
-                HashMap<String, String> headers = new HashMap<String, String>();
-                headers.put("AccountKey", "6oxHbzoDSzuXhgEvfYLqLQ==");
-                headers.put("UniqueUserID", "2807eaf2-cf3e-4d9a-8468-edd50fd0c1cd");
-                headers.put("accept", "application/json");
-                return headers;
-            }
-        };
-        requestQueue.add(BusStopRequest);
-    }
-
-    public void placeMarkers() {
-        count = 0;
-        LatLngBounds.Builder builder = new LatLngBounds.Builder();
-        for (List<Double> coordinates : busCoordinates) {
-            LatLng location = new LatLng(coordinates.get(0), coordinates.get(1));
-
-            int height = 50;
-            int width = 50;
+    private void createMarker(String busStopName, String busStopID, Double busStopLat, Double busStopLng) {
+        if (map != null) {
+            LatLng latLng = new LatLng(busStopLat, busStopLng);
+            int height = 35;
+            int width = 35;
             BitmapDrawable bitmapdraw = (BitmapDrawable) getResources().getDrawable(R.drawable.nearby_marker);
             Bitmap b = bitmapdraw.getBitmap();
             Bitmap smallMarker = Bitmap.createScaledBitmap(b, width, height, false);
 
-            builder.include(location);
-
             map.addMarker(new MarkerOptions()
-                    .position(location)
-                    .title(String.valueOf(getbusStopId(allBusStops.get(count))))
-                    .snippet("")
+                    .position(latLng)
+                    .title(busStopName + " (" + busStopID + ")")
                     .icon(BitmapDescriptorFactory.fromBitmap(smallMarker)));
-            count++;
         }
-        LatLngBounds bounds = builder.build();
-        if (progressDialog != null && progressDialog.isShowing()) {
-            progressDialog.dismiss();
-        }
-        map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100));
     }
-
-    public String getbusStopId(int nameCode) {
-        if (String.valueOf(nameCode).length() < 5) {
-            query = "0" + String.valueOf(nameCode);
-        } else {
-            query = String.valueOf(nameCode);
-        }
-        return query;
-    }
-
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
@@ -382,16 +358,20 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback {
             return;
         }
         map.setMyLocationEnabled(true);
+        map.getUiSettings().setMapToolbarEnabled(false);
+        map.getUiSettings().setMyLocationButtonEnabled(false);
 
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 float zoom = map.getCameraPosition().zoom;
-                LatLng currLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
-                if (zoom >= 12) {
-                    map.animateCamera(CameraUpdateFactory.newLatLng(currLatLng));
-                } else{
-                    map.animateCamera(CameraUpdateFactory.newLatLngZoom(currLatLng, 16));
+                if (mLastLocation != null) {
+                    LatLng currLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+                    if (zoom >= 12) {
+                        map.animateCamera(CameraUpdateFactory.newLatLng(currLatLng));
+                    } else {
+                        map.animateCamera(CameraUpdateFactory.newLatLngZoom(currLatLng, 16));
+                    }
                 }
             }
         });
@@ -401,15 +381,9 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback {
             public boolean onMarkerClick(Marker marker) {
                 String BusStopId;
                 selectedMarker = marker;
-                if (marker.getTitle().length() <= 6) {
-                    BusStopId = marker.getTitle();
-                }else{
-                    BusStopId = marker.getTitle().substring(marker.getTitle().indexOf("(") + 1,
-                            marker.getTitle().indexOf(")"));
-                }
-                getBusStopName(marker.getPosition(), BusStopId);
+                BusStopId = marker.getTitle().substring(marker.getTitle().indexOf("(") + 1, marker.getTitle().indexOf(")"));
+
                 getETA(BusStopId);
-                marker.setTitle("");
                 return false;
             }
         });
@@ -419,9 +393,10 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback {
             public void onInfoWindowClick(Marker marker){
                 Intent sendBusStop  = new Intent(BusSearch.this, BusArrivalTiming.class);
                 Bundle b = new Bundle();
-                if (selectedBusStopName != null) {
-                    b.putString("BusStopName", selectedBusStopName);
-                }
+
+                selectedBusStopName = marker.getTitle().substring(0, marker.getTitle().indexOf("(") - 1);
+                b.putString("BusStopName", selectedBusStopName);
+
                 String busStopId = marker.getTitle().substring(marker.getTitle().indexOf("(") + 1, marker.getTitle().indexOf(")"));
                 b.putString("busStopNo", busStopId);
                 b.putParcelable("busStopPt", marker.getPosition());
@@ -500,65 +475,6 @@ public class BusSearch extends AppCompatActivity implements OnMapReadyCallback {
             }
         };
         requestQueue.add(BusArrivalRequest);
-    }
-
-    private void getBusStopName(LatLng busStopLocation, final String busStopId) {
-        String url = getBusStopNameUrl(busStopLocation.latitude, busStopLocation.longitude);
-        JsonObjectRequest BusStopNameRequest = new JsonObjectRequest(Request.Method.GET, url, null,
-                new Response.Listener<JSONObject>() {
-                    @Override
-                    public void onResponse(JSONObject response) {
-                        JSONArray nearbyJA;
-                        try {
-                            nearbyJA = response.getJSONArray("results");
-                            JSONObject BusStops = nearbyJA.getJSONObject(0);
-                            selectedBusStopName = BusStops.getString("name");
-                            Log.e("LATLNG TEST", selectedBusStopName);
-
-                            selectedMarker.setTitle(selectedBusStopName + " (" + busStopId + ")");
-                            selectedMarker.hideInfoWindow();
-                            selectedMarker.showInfoWindow();
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        if (progressDialog != null && progressDialog.isShowing()) {
-                            progressDialog.dismiss();
-                        }
-                        Snackbar.make(findViewById(R.id.bus_arrival_parent_view),
-                                "Oh no! Something went wrong. Please check that you are connected to the internet.",
-                                Snackbar.LENGTH_SHORT).show();
-                    }
-                });
-        requestQueue.add(BusStopNameRequest);
-    }
-
-    private String getBusStopNameUrl(double lat, double lon) {
-        String latitude = Double.toString(lat);
-        String longitude = Double.toString(lon);
-        StringBuilder urlString = new StringBuilder();
-        urlString.append("https://maps.googleapis.com/maps/api/place/nearbysearch/json?");
-        urlString.append("location=");
-        try {
-            urlString.append(URLEncoder.encode(latitude, "utf8"));
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-        urlString.append(",");
-        try {
-            urlString.append(URLEncoder.encode(longitude, "utf8"));
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-        urlString.append("&radius=1");
-        urlString.append("&type=bus_station");
-        urlString.append("&key=" + "AIzaSyBF6n8sKZwuq_kr5FXmL3k2xLO_7fz77eE");
-        Log.i("NEARBY URL", urlString.toString());
-        return urlString.toString();
     }
 
     @Override

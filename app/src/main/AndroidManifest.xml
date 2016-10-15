@@ -64,12 +64,12 @@
             android:name=".NearbyBusStops"
             android:label="@string/title_activity_nearby_bus_stops"
             android:screenOrientation="portrait"
-            android:theme="@style/AppTheme.NoActionBar.Transparent" />
+            android:theme="@style/AppTheme.NoActionBar.Translucent" />
         <activity
             android:name=".BusSearch"
             android:label="@string/title_activity_bus_search"
             android:screenOrientation="portrait"
-            android:theme="@style/AppTheme.NoActionBar" />
+            android:theme="@style/AppTheme.NoActionBar.Translucent" />
 
         <service
             android:name=".MyLocationTrackingService"

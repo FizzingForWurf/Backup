@@ -24,5 +24,4 @@ public class VolleySingleton {
 
         return mRequestQueue;
     }
-
 }

@@ -41,11 +41,11 @@ public class MyApplication extends MultiDexApplication {
         BusIDs = new ArrayList<Integer>();
     }
 
-    public long addToDatabase(String entryNo, Context c){
+    public long addToDatabase(String entryNo, String directionOne, String directionTwo, Context c){
         BusServiceDBAdapter db = new BusServiceDBAdapter(c);
         db.open();
 
-        long rowIDofInsertedEntry = db.insertEntry(entryNo);
+        long rowIDofInsertedEntry = db.insertEntry(entryNo, directionOne, directionTwo);
 
         db.close();
 

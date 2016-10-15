@@ -1,4 +1,5 @@
 package itrans.itranstest;
+
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -20,7 +21,13 @@ public class BusServiceDBAdapter {
     public static final int COLUMN_KEY_ID = 0;
     public static final String BUS_NO = "bus_no";
     public static final int COLUMN_BN_ID = 1;
-    protected static final String DATABASE_CREATE = "create table " + DATABASE_TABLE + " " + "(" + KEY_ID + " integer primary key autoincrement, " + BUS_NO + " text not null);";
+    public static final String BUS_DIRECTION_ONE = "bus_one";
+    public static final int COLUMN_BN_ONE = 2;
+    public static final String BUS_DIRECTION_TWO = "bus_two";
+    public static final int COLUMN_BN_TWO = 3;
+    protected static final String DATABASE_CREATE = "create table " + DATABASE_TABLE + " " + "(" + KEY_ID +
+            " integer primary key autoincrement, " + BUS_NO + " text not null, " + BUS_DIRECTION_ONE +
+            " text not null, " + BUS_DIRECTION_TWO + " text not null);";
 
     public class MyDBOpenHelper extends SQLiteOpenHelper {
         public MyDBOpenHelper(Context context, String name, SQLiteDatabase.CursorFactory factory, int version){
@@ -57,10 +64,12 @@ public class BusServiceDBAdapter {
         }
     }
 
-    public long insertEntry(String entryNo){
+    public long insertEntry(String entryNo, String directionOne, String directionTwo){
         ContentValues newEntryValues = new ContentValues();
 
         newEntryValues.put(BUS_NO, entryNo);
+        newEntryValues.put(BUS_DIRECTION_ONE, directionOne);
+        newEntryValues.put(BUS_DIRECTION_TWO, directionTwo);
 
         return _db.insert(DATABASE_TABLE, null, newEntryValues);
     }
@@ -87,5 +96,27 @@ public class BusServiceDBAdapter {
         }
 
         return c;
+    }
+
+    public String getdirectionone(int position){
+        String[] columns = {KEY_ID, BUS_NO, BUS_DIRECTION_ONE, BUS_DIRECTION_TWO};
+        Cursor c = _db.query(DATABASE_TABLE, columns, KEY_ID + " = " + position, null, null, null, null);
+        int iONE = c.getColumnIndex(BUS_DIRECTION_ONE);
+        if (c != null){
+            c.moveToFirst();
+            return c.getString(iONE);
+        }
+        return null;
+    }
+
+    public String getdirectiontwo(int position){
+        String[] columns = {KEY_ID, BUS_NO, BUS_DIRECTION_ONE, BUS_DIRECTION_TWO};
+        Cursor c = _db.query(DATABASE_TABLE, columns, KEY_ID + " = " + position, null, null, null, null);
+        int iTWO = c.getColumnIndex(BUS_DIRECTION_TWO);
+        if (c != null){
+            c.moveToFirst();
+            return c.getString(iTWO);
+        }
+        return null;
     }
 }
